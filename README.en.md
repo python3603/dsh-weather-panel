@@ -4,6 +4,8 @@
 
 <h1 align="center">dsh-weather-panel</h1>
 
+<h3 align="center">“Even while you're working, don't forget the weather!”</h3>
+
 <p align="center">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-4f6ef7?style=flat-square"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
@@ -11,12 +13,24 @@
   <img alt="Tests" src="https://img.shields.io/badge/tests-87%20passing-brightgreen?style=flat-square"/>
 </p>
 
-<p align="center">
-  <b>A sidebar weather panel that locates you by network</b>: current conditions, a 5-day and 24-hour
-  forecast, an hourly precipitation chart, <b>China Meteorological Administration (CMA) alerts</b> and
-  <b>typhoon tracks</b> — with a confirm-once notice at startup when it rains or an alert is active.<br/>
-  Pure client side · no API key · no host network permission · additive to other plugins
-</p>
+<div align="center">
+  <img src="docs/assets/memes/jiaban.webp" alt="Working late" width="112" />
+  <img src="docs/assets/memes/ok.webp" alt="OK" width="112" />
+  <img src="docs/assets/memes/bixin.webp" alt="Heart" width="112" />
+</div>
+
+---
+
+## Hi, I'm the little weather keeper
+
+Deep in a coding session, it is easy to forget to look outside. This plugin puts a small weather
+icon in the sidebar: open it and you get the current temperature, wind, humidity and the days ahead
+for your city. **When DSH starts and today brings rain — or the China Meteorological Administration
+has issued an alert — it pops up first and asks you to acknowledge it.** One click on “Got it” and
+it stays quiet for the day.
+
+> Everything below is the rigorous part: where the data comes from, how compatibility and
+> performance are handled, and how to build it. The cute part ends here.
 
 ---
 
@@ -25,6 +39,12 @@
 <div align="center">
   <img src="docs/assets/data-flow.svg" alt="Location, weather, alerts and typhoon data feed one panel" width="100%" />
 </div>
+
+In short: three IP-geolocation sources race in the browser (with an optional persisted device-location
+switch) → BigDataCloud reverse-geocodes the coordinates → Open-Meteo returns current / hourly / daily
+data for that point; in the same round the national CMA alert feed (matched by city, then province) and
+the CMA typhoon list/track are fetched. Everything lands in one shared store used by both the panel and
+the startup notice; caches are written to `localStorage`.
 
 ## Features
 
@@ -36,27 +56,21 @@
 | Next 24 hours | Hourly temperature, condition glyph, rain chance |
 | Hourly chart | 24 bars of precipitation plus a dashed probability line; hover any hour for its values |
 | Alerts | National CMA feed matched to your city, then your province; level/type/issue time with a link to the bulletin |
-| Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click "back to current" |
-| Startup notice | Rain today or an active alert opens a modal that needs acknowledging; quiet for the day afterwards, but **a new alert re-opens it** |
-| Location | Automatic (public IP), a persisted **high-accuracy device-location switch**, or manual city search — source, IP and accuracy are always shown |
+| Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
+| Startup notice | Rain today or an active alert opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it |
+| Location | Automatic (public IP), a persisted high-accuracy device-location switch, or manual city search — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
-| Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every **10 minutes** (paused while hidden, caught up on return) |
+| Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
 
 ## Interface
 
-**Weather tab**: current-condition card, eight parameters, five forecast cards, the hourly chart and a
-24-hour strip.
-
-**Typhoon tab** (appears when a system exists):
-
-<div align="center">
-  <img src="docs/assets/typhoon-illustration.svg" alt="Typhoon track chart illustration: coastline, graticule, observed track, forecast track and wind radii" width="100%" />
-  <br/>
-  <sub>Illustration — the real chart is drawn live from CMA track data (equirectangular projection + Natural Earth land mask)</sub>
-</div>
-
-**Startup notice**: a modal summarizing rain and alerts; its "Got it" button uses the theme's text
-colour, so it stays readable in light and dark themes.
+- **Weather tab**: current-condition card (eight parameters), five forecast cards, the hourly chart and a 24-hour strip.
+- **Typhoon tab**: appears whenever there is an active or most recent system. The chart is drawn with an
+  equirectangular projection: graticule, eight reference cities, observed track coloured by intensity, a
+  dashed forecast track with hollow points, wind radii at the latest fix (km converted to degrees, hence
+  elliptical), and the bundled Natural Earth land mask as the basemap.
+- **Startup notice**: summarizes today's rain and the active alerts. The confirm button uses the theme's
+  text colour rather than white-on-brand, so it stays readable in light and dark themes.
 
 ## Install
 
@@ -71,7 +85,11 @@ Requires DeepSeek Harness **0.2.x** and Node.js ≥ 22 for install/build only.
    ```
 
    `application: "applied"` means it is live.
-3. Reload the Web page: a "Weather" icon appears in the left rail.
+3. Reload the Web page: a “Weather” icon appears in the left rail.
+
+<div align="center">
+  <img src="docs/assets/memes/ok.webp" alt="Installed" width="92" />
+</div>
 
 ## Data sources and licenses
 
@@ -88,6 +106,9 @@ Requires DeepSeek Harness **0.2.x** and Node.js ≥ 22 for install/build only.
 **Privacy**: location requests share only your public IP, weather requests only coordinates, and
 alert/typhoon requests carry nothing personal. Caches stay in your own `localStorage`.
 
+**Stickers in this README** come from the author's own meme library, are used for this repository page
+only, and are not covered by the code license.
+
 ## Compatibility and performance
 
 Compatibility
@@ -95,7 +116,7 @@ Compatibility
 - `shell.overlay` is click-through by design; the notice root re-enables `pointer-events`.
 - No other plugin's DOM/CSS is read; nothing is appended to `document.body`.
 - Styles live in `<style>` elements rendered by the components, `dshw-` prefixed, using only
-  `--dsw-alias-*` tokens — and never "white text on the brand colour", which breaks on pale themes.
+  `--dsw-alias-*` tokens — and never “white text on the brand colour”, which breaks on pale themes.
 - Text goes through the Client locale service; unload closes our panel before unregistering.
 
 Performance
@@ -113,7 +134,7 @@ package.json            bundle + dsh.client declaration, exports, scripts
 cordis.patch.yml        inserts one Host plugin row
 index.js                Host half: intentionally empty
 client.js               built artifact (npm run build)
-docs/assets/            README artwork (original SVG)
+docs/assets/            README artwork (original SVG) and stickers
 src/lib/                pure logic: i18n, links, wmo, format, cache, geo,
                         weather, alerts, typhoon, notice-core, store
 src/ui/                 styles, icons, chart, basemap-data, typhoon-view,
@@ -144,9 +165,9 @@ blanking the user's panel.
 
 ## Testing the startup notice
 
-Panel → "Change location" → "**Preview the notice**" fires the dialog immediately with a demo red
-typhoon warning. It never touches real data, and acknowledging it clears the demo switch. From the
-console you can also use:
+Panel → “Change location” → “Preview the notice” fires the dialog immediately with a demo red typhoon
+warning. It never touches real data, and acknowledging it clears the demo switch. From the console you
+can also use:
 
 ```js
 localStorage.setItem('dsh-weather-panel:demo-alert', 'typhoon-red'); location.reload();
@@ -170,8 +191,13 @@ Bugs, ideas, or unreadable text — please open an issue:
 **<https://github.com/python3603/dsh-weather-panel/issues>**
 The panel footer also links there.
 
+<div align="center">
+  <img src="docs/assets/memes/wenhao.webp" alt="Questions?" width="92" />
+</div>
+
 ## License
 
 Code MIT (see [LICENSE](LICENSE)). Weather data CC BY 4.0 © Open-Meteo.com; alert and typhoon data
 © China Meteorological Administration (personal viewing; respect their terms); basemap data
-© Natural Earth (public domain); reverse geocoding © BigDataCloud. Icon and artwork are original.
+© Natural Earth (public domain); reverse geocoding © BigDataCloud. Icon and SVG artwork are original;
+the README stickers come from the author's meme library.
