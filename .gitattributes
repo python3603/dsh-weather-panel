@@ -1,0 +1,8 @@
+# Keep line endings stable across Windows/macOS/Linux checkouts.
+# Sources and the generated client.js are committed with LF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

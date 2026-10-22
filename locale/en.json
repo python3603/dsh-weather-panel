@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Weather Panel",
+    "description": "A sidebar weather panel that locates you by network and shows current conditions plus a 3-day forecast (Open-Meteo, no API key)."
+  }
+}

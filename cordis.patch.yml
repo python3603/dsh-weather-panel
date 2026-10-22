@@ -1,0 +1,5 @@
+# Bundle patch: one Host plugin row for this package.
+# The row's `name` must match the package name so the Client bundle resolves.
+- insert:
+    - id: weather-panel
+      name: 'dsh-weather-panel'
