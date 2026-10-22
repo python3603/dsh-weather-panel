@@ -1,75 +1,74 @@
 {
-  "name": "dsh-weather-panel",
-  "version": "1.2.9",
-  "private": true,
-  "description": "DeepSeek Harness UI plugin: a sidebar weather panel that auto-locates the current network, shows live meteorological parameters and a 3-day forecast from Open-Meteo. 深色/浅色主题自适应，零 API Key，纯浏览器端取数。",
-  "type": "module",
-  "exports": {
-    ".": "./index.js",
-    "./client": "./client.js",
-    "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "index.js",
-    "client.js",
-    "cordis.patch.yml",
-    "locale/*.json",
-    "icon.svg",
-    "src",
-    "scripts",
-    "docs",
-    "README.md",
-    "README.en.md",
-    "CHANGELOG.md",
-    "LICENSE"
-  ],
-  "scripts": {
-    "build": "node scripts/build.mjs",
-    "basemap": "node scripts/build-basemap.mjs --scale 50m --tolerance 0.05 --decimals 2",
-    "lint": "node --check index.js && node --check client.js && node --check scripts/build.mjs",
-    "test": "node --test --test-isolation=none \"test/*.test.mjs\"",
-    "check": "npm run build && npm run lint && npm test"
-  },
-  "keywords": [
-    "deepseek",
-    "deepseek-harness",
-    "dsh",
-    "dsh-plugin",
-    "client-plugin",
-    "weather",
-    "forecast",
-    "open-meteo",
-    "geolocation",
-    "sidebar",
-    "web-ui",
-    "i18n",
-    "zh",
-    "en"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/python3603/dsh-weather-panel.git"
-  },
-  "bugs": {
-    "url": "https://github.com/python3603/dsh-weather-panel/issues"
-  },
-  "homepage": "https://github.com/python3603/dsh-weather-panel#readme",
-  "engines": {
-    "node": ">=22"
-  },
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-slots"
-      ]
-    }
-  }
+    "name":  "dsh-weather-panel",
+    "version":  "1.2.9",
+    "description":  "DeepSeek Harness 侧边栏天气面板：网络自动定位、5 天与 24 小时预报、逐小时降水、中央气象台预警与台风路径（纯浏览器端，无需 API Key）",
+    "keywords":  [
+                     "dsh-plugin",
+                     "deepseek-harness",
+                     "dsh",
+                     "weather",
+                     "weather-forecast",
+                     "typhoon",
+                     "alerts",
+                     "sidebar",
+                     "open-meteo"
+                 ],
+    "author":  "python3603",
+    "license":  "MIT",
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/python3603/dsh-weather-panel.git"
+                   },
+    "homepage":  "https://github.com/python3603/dsh-weather-panel#readme",
+    "bugs":  {
+                 "url":  "https://github.com/python3603/dsh-weather-panel/issues"
+             },
+    "main":  "./index.js",
+    "exports":  {
+                    ".":  "./index.js",
+                    "./client":  "./client.js",
+                    "./locale/*.json":  "./locale/*.json",
+                    "./icon":  "./icon.svg",
+                    "./package.json":  "./package.json"
+                },
+    "files":  [
+                  "index.js",
+                  "client.js",
+                  "cordis.patch.yml",
+                  "locale/*.json",
+                  "icon.svg",
+                  "src",
+                  "scripts",
+                  "docs",
+                  "README.md",
+                  "README.en.md",
+                  "CHANGELOG.md",
+                  "LICENSE"
+              ],
+    "engines":  {
+                    "node":  "\u003e=22"
+                },
+    "dsh":  {
+                "bundle":  {
+                               "patch":  "./cordis.patch.yml"
+                           },
+                "client":  {
+                               "platform":  "web",
+                               "inject":  [
+                                              "@deepseek-ai/dsh-client-locale",
+                                              "@deepseek-ai/dsh-client-ui-slots"
+                                          ]
+                           }
+            },
+    "publishConfig":  {
+                          "access":  "public"
+                      },
+    "scripts":  {
+                    "build":  "node scripts/build.mjs",
+                    "basemap":  "node scripts/build-basemap.mjs --scale 50m --tolerance 0.05 --decimals 2",
+                    "lint":  "node --check index.js \u0026\u0026 node --check client.js \u0026\u0026 node --check scripts/build.mjs",
+                    "test":  "node --test --test-isolation=none \"test/*.test.mjs\"",
+                    "check":  "npm run build \u0026\u0026 npm run lint \u0026\u0026 npm test",
+                    "prepublishOnly":  "npm run check"
+                }
 }
