@@ -1,6 +1,6 @@
 {
   "name": "dsh-weather-panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "DeepSeek Harness UI plugin: a sidebar weather panel that auto-locates the current network, shows live meteorological parameters and a 3-day forecast from Open-Meteo. 深色/浅色主题自适应，零 API Key，纯浏览器端取数。",
   "type": "module",

@@ -1,409 +1,55 @@
 /**
- * The weather panel: data flow, view and styles.
+ * The weather panel: view layer only.
  *
- * Compatibility / performance rules this file follows:
- * - It owns exactly one additive `main` panel and one additive
- *   `sidebar.panellist` entry; it never replaces host UI or reads another
- *   plugin's DOM.
- * - Every style lives in one <style> element rendered by the panel, so nothing
- *   leaks globally and unmounting removes everything.
- * - Only `--dsw-alias-*` theme tokens are used for chrome, so light/dark
- *   switching works without the plugin knowing the theme.
- * - Network work is cached (forecast 10 min, location 6 h), coalesced through
- *   an AbortController, and paused while the document is hidden.
+ * Data, caching and the ten-minute refresh loop live in `store.js` so the
+ * startup notice can share them. This file renders from the store, owns the tab
+ * state and the location picker, and keeps every style inside one <style>
+ * element (see styles.js) so nothing leaks globally.
  */
 
-const PANEL_ID = 'dsh-weather-panel';
-const SETTINGS_STORAGE_KEY = `${PANEL_ID}:settings`;
-const LOCATION_CACHE_KEY = 'resolved';
-const LOCATION_TTL_MS = 6 * 60 * 60 * 1000;
-const FORECAST_TTL_MS = 10 * 60 * 1000;
-const STALE_AFTER_MS = 30 * 60 * 1000;
-const AUTO_REFRESH_MS = 10 * 60 * 1000;
-const TICK_MS = 60 * 1000;
-const REQUEST_TIMEOUT_MS = 12000;
-const FORECAST_DAYS_SHOWN = 3;
-const DEFAULT_SETTINGS = { units: 'metric', override: null };
+const PANEL_FORECAST_DAYS = 3;
+const PANEL_STALE_AFTER_MS = 30 * 60 * 1000;
 
-let panelStorage = null;
-let panelLocationCache = null;
-const panelForecastCaches = new Map();
-
-function getPanelStorage() {
-  if (!panelStorage) panelStorage = createSafeStorage(`${PANEL_ID}:probe`);
-  return panelStorage;
-}
-
-function getLocationCache() {
-  if (!panelLocationCache) {
-    panelLocationCache = createTtlCache(getPanelStorage(), `${PANEL_ID}:location:`, () => Date.now());
-  }
-  return panelLocationCache;
-}
-
-function forecastCacheFor(location) {
-  const key = `${Number(location.lat).toFixed(2)},${Number(location.lon).toFixed(2)}`;
-  if (!panelForecastCaches.has(key)) {
-    panelForecastCaches.set(key, createTtlCache(getPanelStorage(), `${PANEL_ID}:forecast:${key}:`, () => Date.now()));
-  }
-  return panelForecastCaches.get(key);
-}
-
-function readPanelSettings() {
+function readActiveLocale(localeService) {
+  if (!localeService || typeof localeService.getSnapshot !== 'function') return '';
   try {
-    const raw = getPanelStorage().getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
-    const override = parsed && parsed.override && isNumber(parsed.override.lat) && isNumber(parsed.override.lon)
-      ? {
-        lat: parsed.override.lat,
-        lon: parsed.override.lon,
-        label: typeof parsed.override.label === 'string' ? parsed.override.label : '',
-        source: parsed.override.source === 'gps' ? 'gps' : 'manual'
-      }
-      : null;
-    return { units: parsed && parsed.units === 'imperial' ? 'imperial' : 'metric', override };
+    const snapshot = localeService.getSnapshot();
+    return snapshot && snapshot.active !== undefined ? String(snapshot.active) : '';
   } catch (error) {
-    return { ...DEFAULT_SETTINGS };
+    return '';
   }
 }
 
-function writePanelSettings(settings) {
-  try {
-    getPanelStorage().setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch (error) {
-    /* best effort: the in-memory state still works */
-  }
-}
-
-/** JSON fetch with a hard timeout, mapped to the panel's own error vocabulary. */
-function fetchJson(url, options) {
-  const settings = options || {};
-  const externalSignal = settings.signal;
-  const controller = new AbortController();
-  const abortFromOutside = () => controller.abort();
-  if (externalSignal) {
-    if (externalSignal.aborted) controller.abort();
-    else externalSignal.addEventListener('abort', abortFromOutside, { once: true });
-  }
-  const timer = setTimeout(() => controller.abort(), Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : REQUEST_TIMEOUT_MS);
-
-  return fetch(url, {
-    method: 'GET',
-    mode: 'cors',
-    credentials: 'omit',
-    cache: 'no-store',
-    redirect: 'follow',
-    referrerPolicy: 'no-referrer',
-    headers: { accept: 'application/json' },
-    signal: controller.signal
-  }).then(response => {
-    if (!response.ok) {
-      const error = new Error(`HTTP ${response.status}`);
-      error.status = response.status;
-      throw error;
-    }
-    return response.json();
-  }).finally(() => {
-    clearTimeout(timer);
-    if (externalSignal) externalSignal.removeEventListener('abort', abortFromOutside);
-  });
-}
-
-/** Ask the browser for device location; resolves `{lat, lon, accuracy}`. */
-function requestDevicePosition() {
-  return new Promise((resolve, reject) => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      reject(new Error('unsupported'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      position => resolve({
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-        accuracy: position.coords.accuracy
-      }),
-      error => reject(error),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
-    );
-  });
-}
-
-/** Reverse-geocode, falling back to the provider's city and then coordinates. */
-async function describeLocation(found, signal, lang) {
-  let label = '';
-  try {
-    const reversed = await reverseGeocode(fetchJson, found.lat, found.lon, { signal, language: lang });
-    if (reversed && reversed.label) label = reversed.label;
-  } catch (error) {
-    label = '';
-  }
-  if (!label) {
-    label = [found.city, found.region].filter(Boolean).join(' · ') || formatCoordinates(found.lat, found.lon);
-  }
-  return {
-    lat: found.lat,
-    lon: found.lon,
-    label,
-    source: found.source || 'network',
-    ip: found.ip || '',
-    provider: found.provider || '',
-    countryCode: found.countryCode || ''
-  };
-}
-
-/** Error with a tagged kind so the caller can pick the right message. */
-function taggedError(kind, cause) {
-  const error = cause instanceof Error ? cause : new Error(kind);
-  error.kind = kind;
-  return error;
-}
-
-function describeError(error, translate) {
-  if (!error) return translate('error.weather');
-  if (error.kind === 'locate') return translate('error.locate');
-  if (typeof error.status === 'number') return translate('error.http', { status: error.status });
-  if (error.name === 'AbortError') return translate('error.timeout');
-  return translate('error.weather');
-}
-
-/** Resolve `{lat, lon, label, source}` for the current settings, or throw. */
-async function resolveLocation(settings, signal, lang) {
-  if (settings.override) return { ...settings.override };
-  const cached = getLocationCache().get(LOCATION_CACHE_KEY);
-  if (cached && isNumber(cached.lat) && isNumber(cached.lon)) return cached;
-  const found = await lookupNetworkLocation(fetchJson, { signal });
-  if (!found) throw taggedError('locate');
-  const described = await describeLocation(found, signal, lang);
-  getLocationCache().set(LOCATION_CACHE_KEY, described, LOCATION_TTL_MS);
-  return described;
-}
-
-/* ------------------------------------------------------------------ */
-/* Data hook                                                          */
-/* ------------------------------------------------------------------ */
-
-function useWeatherPanel(translate, lang) {
-  const translateRef = React.useRef(translate);
-  translateRef.current = translate;
-  const langRef = React.useRef(lang);
-  langRef.current = lang;
-
-  const [settings, setSettings] = React.useState(readPanelSettings);
-  const settingsRef = React.useRef(settings);
-  settingsRef.current = settings;
-
-  const [view, setView] = React.useState({
-    phase: 'idle',
-    busy: false,
-    error: null,
-    location: null,
-    forecast: null,
-    updatedAt: null
-  });
-
-  const runRef = React.useRef(0);
-  const abortRef = React.useRef(null);
-  const lastAttemptRef = React.useRef(0);
-  const mountedRef = React.useRef(true);
-
-  React.useEffect(() => () => {
-    mountedRef.current = false;
-    if (abortRef.current) abortRef.current.abort();
-  }, []);
-
-  const patchSettings = React.useCallback(patch => {
-    setSettings(previous => {
-      const next = { ...previous, ...patch };
-      settingsRef.current = next;
-      writePanelSettings(next);
-      return next;
-    });
-  }, []);
-
-  const load = React.useCallback(async options => {
-    const opts = options || {};
-    const force = opts.force === true;
-    const run = runRef.current + 1;
-    runRef.current = run;
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    lastAttemptRef.current = Date.now();
-    const alive = () => runRef.current === run && mountedRef.current;
-    const t = translateRef.current;
-    const currentLang = langRef.current;
-
-    setView(previous => ({
-      ...previous,
-      busy: true,
-      error: null,
-      phase: previous.forecast ? 'ready' : 'locating'
-    }));
-
-    try {
-      const currentSettings = settingsRef.current;
-      let location = currentSettings.override || getLocationCache().get(LOCATION_CACHE_KEY) || null;
-
-      // Paint whatever is cached before touching the network.
-      if (location) {
-        const cache = forecastCacheFor(location);
-        const cachedForecast = cache.get('latest');
-        const savedAt = cache.savedAt('latest');
-        if (cachedForecast) {
-          if (alive()) {
-            setView(previous => ({
-              ...previous,
-              phase: 'ready',
-              location,
-              forecast: cachedForecast,
-              updatedAt: savedAt
-            }));
-          }
-          if (!force && savedAt && Date.now() - savedAt < FORECAST_TTL_MS) {
-            if (alive()) setView(previous => ({ ...previous, busy: false }));
-            return;
-          }
-        }
-      }
-
-      if (!location) {
-        if (alive()) setView(previous => ({ ...previous, phase: 'locating' }));
-        location = await resolveLocation(currentSettings, controller.signal, currentLang);
-        if (!alive()) return;
-        if (alive()) setView(previous => ({ ...previous, phase: 'loading', location }));
-      } else if (!currentSettings.override) {
-        // Refresh the cached network location in the background when it expired.
-        const cachedLocation = getLocationCache().get(LOCATION_CACHE_KEY);
-        if (!cachedLocation && alive()) {
-          location = await resolveLocation({ ...currentSettings, override: null }, controller.signal, currentLang);
-          if (!alive()) return;
-        }
-      }
-
-      if (!alive()) return;
-      setView(previous => ({
-        ...previous,
-        phase: previous.forecast ? 'ready' : 'loading',
-        location
-      }));
-
-      const cache = forecastCacheFor(location);
-      let forecast = force ? null : cache.get('latest');
-      let updatedAt = cache.savedAt('latest') || Date.now();
-      if (!forecast) {
-        const payload = await fetchJson(buildForecastUrl(location.lat, location.lon), {
-          signal: controller.signal,
-          timeoutMs: REQUEST_TIMEOUT_MS
-        });
-        const normalized = normalizeForecast(payload);
-        if (!normalized) throw taggedError('data');
-        forecast = normalized;
-        cache.set('latest', normalized, FORECAST_TTL_MS);
-        updatedAt = Date.now();
-      }
-
-      if (!alive()) return;
-      setView({
-        phase: 'ready',
-        busy: false,
-        error: null,
-        location,
-        forecast,
-        updatedAt
-      });
-    } catch (error) {
-      if (!alive()) return;
-      setView(previous => ({
-        ...previous,
-        busy: false,
-        phase: previous.forecast ? 'ready' : 'error',
-        error: describeError(error, translateRef.current)
-      }));
-    }
-  }, []);
-
-  const overrideKey = settings.override
-    ? `${settings.override.lat.toFixed(3)}|${settings.override.lon.toFixed(3)}|${settings.override.source}`
-    : '';
-
+/**
+ * Track the active language as a plain string.
+ *
+ * Deliberately not `useSyncExternalStore`: it would require the locale snapshot
+ * object to be referentially stable, and a Host that rebuilt it per call would
+ * throw "The result of getSnapshot should be cached" and blank the slot.
+ */
+function useActiveLocale(localeService) {
+  const [active, setActive] = React.useState(() => readActiveLocale(localeService));
   React.useEffect(() => {
-    load({ force: false });
-  }, [overrideKey, load]);
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      if (Date.now() - lastAttemptRef.current >= AUTO_REFRESH_MS) load({ force: false });
-    }, TICK_MS);
-    return () => clearInterval(timer);
-  }, [load]);
-
-  const useAutoLocation = React.useCallback(() => {
-    getLocationCache().delete(LOCATION_CACHE_KEY);
-    patchSettings({ override: null });
-    load({ force: true });
-  }, [load, patchSettings]);
-
-  const useDeviceLocation = React.useCallback(async () => {
-    const t = translateRef.current;
-    try {
-      const position = await requestDevicePosition();
-      const label = await describeLocation(
-        { lat: position.lat, lon: position.lon, source: 'gps' },
-        undefined,
-        langRef.current
-      ).then(described => described.label).catch(() => formatCoordinates(position.lat, position.lon));
-      patchSettings({
-        override: { lat: position.lat, lon: position.lon, label, source: 'gps' }
-      });
-      // Re-locate explicitly: the override may not change (same coordinates),
-      // in which case the settings effect would not fire.
-      load({ force: true });
-    } catch (error) {
-      setView(previous => ({ ...previous, error: t('error.gps') }));
-    }
-  }, [load, patchSettings]);
-
-  const selectCity = React.useCallback(city => {
-    patchSettings({
-      override: {
-        lat: city.lat,
-        lon: city.lon,
-        label: [city.name, city.region].filter(Boolean).join(' · '),
-        source: 'manual'
-      }
+    setActive(readActiveLocale(localeService));
+    if (!localeService || typeof localeService.subscribe !== 'function') return undefined;
+    let disposed = false;
+    const unsubscribe = localeService.subscribe(() => {
+      if (!disposed) setActive(readActiveLocale(localeService));
     });
-  }, [patchSettings]);
-
-  const toggleUnits = React.useCallback(() => {
-    patchSettings({ units: settingsRef.current.units === 'imperial' ? 'metric' : 'imperial' });
-  }, [patchSettings]);
-
-  return {
-    settings,
-    view,
-    refresh: () => load({ force: true }),
-    useAutoLocation,
-    useDeviceLocation,
-    selectCity,
-    toggleUnits
-  };
+    return () => {
+      disposed = true;
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [localeService]);
+  return active;
 }
-
-/* ------------------------------------------------------------------ */
-/* View                                                               */
-/* ------------------------------------------------------------------ */
 
 function ParameterList(props) {
   const items = props.items;
   return h('div', { className: 'dshw-grid' },
     items.map(item => h('div', { className: 'dshw-param', key: item.key || item.label },
       h('span', { className: 'dshw-param-k' }, item.label),
-      h('span', { className: 'dshw-param-v' },
-        item.value,
-        item.unit ? h('small', null, item.unit) : null
-      )
+      h('span', { className: 'dshw-param-v' }, item.value)
     ))
   );
 }
@@ -515,7 +161,7 @@ function ForecastCard(props) {
 }
 
 function HourlyStrip(props) {
-  const { t, lang, units, hours, currentTime } = props;
+  const { t, units, hours, currentTime } = props;
   if (!hours || hours.length === 0) return null;
   return h('div', { className: 'dshw-hours', role: 'list' },
     hours.map((hour, index) => {
@@ -529,6 +175,61 @@ function HourlyStrip(props) {
           : null
       );
     })
+  );
+}
+
+function AlertsBanner(props) {
+  const { alerts, t, lang } = props;
+  if (!alerts || alerts.length === 0) return null;
+  const shown = alerts.slice(0, 3);
+  const remaining = alerts.length - shown.length;
+  const highest = alerts[0];
+  return h('section', { className: 'dshw-card dshw-alerts' },
+    h('div', { className: 'dshw-alerts-head' },
+      h('h2', { className: 'dshw-section-title' }, t('alerts.title')),
+      h('span', { className: 'dshw-note' },
+        `${t('alerts.count', { n: alerts.length })} · ${t('alerts.source')}`
+      )
+    ),
+    h('div', { className: 'dshw-alert-list' },
+      shown.map(alert => h('a', {
+        className: 'dshw-alert-row',
+        key: alert.id,
+        href: alert.url || 'https://www.nmc.cn/publish/alarm.html',
+        target: '_blank',
+        rel: 'noreferrer noopener'
+      },
+        h('span', { className: `dshw-level-chip dshw-level-${alert.level || 'blue'}` },
+          lang === 'en' ? (alert.levelEn || 'Alert') : (alert.levelZh || '预警')
+        ),
+        h('span', { className: 'dshw-alert-text' }, alert.title),
+        h('span', { className: 'dshw-alert-scope' },
+          alert.scope === 'city' ? t('alerts.scopeCity') : t('alerts.scopeRegion')
+        )
+      ))
+    ),
+    remaining > 0 || highest.url
+      ? h('div', { className: 'dshw-alerts-foot' },
+        remaining > 0 ? h('span', { className: 'dshw-note' }, t('alerts.more', { n: remaining })) : null,
+        h('a', {
+          className: 'dshw-link',
+          href: 'https://www.nmc.cn/publish/alarm.html',
+          target: '_blank',
+          rel: 'noreferrer noopener'
+        }, t('alerts.openAll'))
+      )
+      : null
+  );
+}
+
+function ProxyHint(props) {
+  const { location, t, onPick } = props;
+  if (!location || location.source !== 'network') return null;
+  const code = String(location.countryCode || '').toUpperCase();
+  if (!code || code === 'CN') return null;
+  return h('div', { className: 'dshw-hint', role: 'note' },
+    h('span', { className: 'dshw-hint-text' }, t('proxy.hint', { country: code })),
+    h('button', { type: 'button', className: 'dshw-btn', onClick: onPick }, t('proxy.action'))
   );
 }
 
@@ -617,21 +318,24 @@ function LocationPicker(props) {
 }
 
 function PanelSkeleton(props) {
-  const label = props.label;
   return h('div', { className: 'dshw-loading', 'aria-live': 'polite' },
     h('div', { className: 'dshw-skeleton' }),
-    h('p', { className: 'dshw-note' }, label)
+    h('p', { className: 'dshw-note' }, props.label)
   );
 }
 
 function PanelFooter(props) {
-  const { t, view } = props;
-  const provider = view.location && view.location.provider ? view.location.provider : '';
+  const { t, state } = props;
+  const provider = state.location && state.location.provider ? state.location.provider : '';
   return h('footer', { className: 'dshw-footer' },
     h('span', null,
       `${t('footer.weather')}: `,
       h('a', { href: 'https://open-meteo.com/', target: '_blank', rel: 'noreferrer noopener' }, 'Open-Meteo'),
       ` · ${t('footer.license')}`
+    ),
+    h('span', null,
+      `${t('footer.alerts')}: `,
+      h('a', { href: 'https://www.nmc.cn/publish/alarm.html', target: '_blank', rel: 'noreferrer noopener' }, '中央气象台')
     ),
     h('span', null,
       `${t('footer.location')}: `,
@@ -643,11 +347,45 @@ function PanelFooter(props) {
   );
 }
 
+/** Panel body for the weather tab. */
+function WeatherTab(props) {
+  const { t, lang, units, forecast, current, today, upcoming, hours } = props;
+  if (!forecast) return null;
+  return h(React.Fragment, null,
+    h(NowSection, { t, lang, units, current, today }),
+    h('section', { className: 'dshw-section' },
+      h('div', { className: 'dshw-section-head' },
+        h('h2', { className: 'dshw-section-title' }, t('forecast.title')),
+        forecast.timezone ? h('span', { className: 'dshw-note' }, forecast.timezone) : null
+      ),
+      h('div', { className: 'dshw-forecast' },
+        upcoming.map((day, index) => h(ForecastCard, {
+          key: day.date || `day-${index}`,
+          t,
+          lang,
+          units,
+          day,
+          offset: index + 1
+        }))
+      )
+    ),
+    hours.length > 0
+      ? h('section', { className: 'dshw-section' },
+        h('div', { className: 'dshw-section-head' },
+          h('h2', { className: 'dshw-section-title' }, t('hourly.title'))
+        ),
+        h(PrecipitationChart, { hours, units, t, lang }),
+        h(HourlyStrip, { t, units, hours, currentTime: current && current.time })
+      )
+      : null
+  );
+}
+
 /** The panel component registered into the `main` slot. */
 function WeatherPanel(props) {
+  const store = props.store;
   const rawTranslate = props && typeof props.t === 'function' ? props.t : key => key;
-  const localeService = props ? props.locale : null;
-  const activeLocale = useActiveLocale(localeService);
+  const activeLocale = useActiveLocale(props ? props.locale : null);
   const lang = String(activeLocale || '').toLowerCase().startsWith('en') ? 'en' : 'zh';
   const translate = React.useCallback((key, vars) => {
     try {
@@ -658,31 +396,41 @@ function WeatherPanel(props) {
     }
   }, [rawTranslate, lang]);
 
-  const model = useWeatherPanel(translate, lang);
+  const state = useWeatherStore(store);
   const [pickerOpen, setPickerOpen] = React.useState(false);
-  const closePanel = props ? props.closePanel : null;
+  const [tab, setTab] = React.useState('weather');
 
-  const view = model.view;
-  const settings = model.settings;
-  const units = settings.units;
-  const forecast = view.forecast;
+  React.useEffect(() => {
+    store.setLanguage(lang, translate);
+  }, [store, lang, translate]);
+
+  const typhoonAvailable = Boolean(state.typhoon);
+  React.useEffect(() => {
+    if (tab === 'typhoon' && !typhoonAvailable) setTab('weather');
+  }, [tab, typhoonAvailable]);
+
+  const closePanel = props ? props.closePanel : null;
+  const units = state.settings.units;
+  const forecast = state.forecast;
   const current = forecast ? forecast.current : null;
   const daily = forecast ? forecast.daily : [];
   const today = daily && daily[0] ? daily[0] : null;
-  const upcoming = upcomingDays(daily, FORECAST_DAYS_SHOWN);
+  const upcoming = upcomingDays(daily, PANEL_FORECAST_DAYS);
   const hours = forecast ? selectUpcomingHours(forecast.hourly, current && current.time, 24) : [];
-  const isStale = view.updatedAt && Date.now() - view.updatedAt > STALE_AFTER_MS;
+  const isStale = Boolean(state.updatedAt) && Date.now() - state.updatedAt > PANEL_STALE_AFTER_MS;
 
   const subtitleParts = [];
-  if (view.location) subtitleParts.push(view.location.label);
-  if (view.location && view.location.source === 'network' && view.location.ip) {
-    subtitleParts.push(translate('panel.subtitleNetwork', { ip: view.location.ip }));
-  } else if (view.location && view.location.source === 'gps') {
+  if (state.location) subtitleParts.push(state.location.label);
+  if (state.location && state.location.source === 'network' && state.location.ip) {
+    subtitleParts.push(translate('panel.subtitleNetwork', { ip: state.location.ip }));
+  } else if (state.location && state.location.source === 'gps') {
     subtitleParts.push(translate('panel.subtitleGps'));
-  } else if (view.location && view.location.source === 'manual') {
+  } else if (state.location && state.location.source === 'manual') {
     subtitleParts.push(translate('panel.subtitleManual'));
   }
-  if (view.updatedAt) subtitleParts.push(translate('panel.updated', { time: formatClockFromDate(new Date(view.updatedAt)) }));
+  if (state.updatedAt) subtitleParts.push(translate('panel.updated', { time: formatClockFromDate(new Date(state.updatedAt)) }));
+
+  const openPicker = () => setPickerOpen(true);
 
   return h('div', { className: 'dshw-root', 'data-dsh-weather-panel': '' },
     h(PanelStyles, null),
@@ -695,7 +443,7 @@ function WeatherPanel(props) {
               className: index === 0 ? 'dshw-sub-strong' : 'dshw-chip',
               key: `${index}-${part}`
             }, part)),
-            view.busy ? h('span', { className: 'dshw-chip dshw-chip-busy' }, translate('state.updating')) : null,
+            state.busy ? h('span', { className: 'dshw-chip dshw-chip-busy' }, translate('state.updating')) : null,
             isStale ? h('span', { className: 'dshw-chip dshw-chip-warn' }, translate('state.stale')) : null
           )
         ),
@@ -703,22 +451,22 @@ function WeatherPanel(props) {
           h('button', {
             type: 'button',
             className: 'dshw-btn dshw-btn-icon',
-            onClick: model.refresh,
+            onClick: () => store.refresh({ force: true }),
             title: translate('action.refresh'),
             'aria-label': translate('action.refresh'),
-            disabled: view.busy
+            disabled: state.busy
           }, h(RefreshGlyph)),
           h('button', {
             type: 'button',
             className: 'dshw-btn',
-            onClick: model.toggleUnits,
+            onClick: () => store.toggleUnits(),
             title: units === 'imperial' ? translate('action.useMetric') : translate('action.useImperial'),
             'aria-label': units === 'imperial' ? translate('action.useMetric') : translate('action.useImperial')
           }, units === 'imperial' ? '°F' : '°C'),
           h('button', {
             type: 'button',
             className: 'dshw-btn',
-            onClick: () => setPickerOpen(open => !open),
+            onClick: openPicker,
             'aria-expanded': pickerOpen ? 'true' : 'false'
           }, h(PinGlyph), translate('action.changeLocation')),
           closePanel
@@ -739,101 +487,74 @@ function WeatherPanel(props) {
           lang,
           onClose: () => setPickerOpen(false),
           onAuto: () => {
-            model.useAutoLocation();
+            store.clearOverride();
             setPickerOpen(false);
           },
           onDevice: () => {
-            model.useDeviceLocation();
+            store.useDeviceLocation();
             setPickerOpen(false);
           },
           onSelect: city => {
-            model.selectCity(city);
+            store.selectCity(city);
             setPickerOpen(false);
           }
         })
         : null,
 
-      view.error
+      h(ProxyHint, { location: state.location, t: translate, onPick: openPicker }),
+
+      state.error
         ? h('div', { className: 'dshw-alert', role: 'alert' },
-          h('span', null, view.error),
-          h('button', {
-            type: 'button',
-            className: 'dshw-btn',
-            onClick: model.refresh
-          }, translate('action.retry'))
+          h('span', null, state.error),
+          h('button', { type: 'button', className: 'dshw-btn', onClick: () => store.refresh({ force: true }) },
+            translate('action.retry'))
         )
         : null,
 
-      !forecast
-        ? h(PanelSkeleton, {
-          label: view.phase === 'locating' ? translate('state.locating') : translate('state.loading')
-        })
-        : h(React.Fragment, null,
-          h(NowSection, { t: translate, lang, units, current, today }),
-          h('section', { className: 'dshw-section' },
-            h('div', { className: 'dshw-section-head' },
-              h('h2', { className: 'dshw-section-title' }, translate('forecast.title')),
-              forecast.timezone ? h('span', { className: 'dshw-note' }, forecast.timezone) : null
-            ),
-            h('div', { className: 'dshw-forecast' },
-              upcoming.map((day, index) => h(ForecastCard, {
-                key: day.date || `day-${index}`,
-                t: translate,
-                lang,
-                units,
-                day,
-                offset: index + 1
-              }))
-            )
-          ),
-          hours.length > 0
-            ? h('section', { className: 'dshw-section' },
-              h('div', { className: 'dshw-section-head' },
-                h('h2', { className: 'dshw-section-title' }, translate('hourly.title'))
-              ),
-              h(HourlyStrip, { t: translate, lang, units, hours, currentTime: current && current.time })
-            )
-            : null
-        ),
+      h(AlertsBanner, { alerts: state.alerts, t: translate, lang }),
 
-      h(PanelFooter, { t: translate, view })
+      typhoonAvailable
+        ? h('div', { className: 'dshw-tabs', role: 'tablist' },
+          h('button', {
+            type: 'button',
+            role: 'tab',
+            className: `dshw-tab ${tab === 'weather' ? 'dshw-tab-active' : ''}`,
+            'aria-selected': tab === 'weather' ? 'true' : 'false',
+            onClick: () => setTab('weather')
+          }, translate('tab.weather')),
+          h('button', {
+            type: 'button',
+            role: 'tab',
+            className: `dshw-tab ${tab === 'typhoon' ? 'dshw-tab-active' : ''}`,
+            'aria-selected': tab === 'typhoon' ? 'true' : 'false',
+            onClick: () => setTab('typhoon')
+          }, translate('tab.typhoon'))
+        )
+        : null,
+
+      !forecast && tab === 'weather'
+        ? h(PanelSkeleton, {
+          label: state.phase === 'locating' ? translate('state.locating') : translate('state.loading')
+        })
+        : null,
+
+      tab === 'weather' && forecast
+        ? h(WeatherTab, { t: translate, lang, units, forecast, current, today, upcoming, hours })
+        : null,
+
+      tab === 'typhoon'
+        ? h(TyphoonView, {
+          typhoon: state.typhoon,
+          typhoonList: state.typhoonList,
+          t: translate,
+          lang,
+          onSelectTyphoon: id => store.selectTyphoon(id)
+        })
+        : null,
+
+      h(PanelFooter, { t: translate, state })
     )
   );
-}
-
-/**
- * Track the active language as a plain string.
- *
- * Deliberately not `useSyncExternalStore`: it would require the locale snapshot
- * object to be referentially stable, and a Host that rebuilt it per call would
- * throw "The result of getSnapshot should be cached" and blank the slot. Reading
- * one primitive field through a subscription cannot have that failure mode.
- */
-function readActiveLocale(localeService) {
-  if (!localeService || typeof localeService.getSnapshot !== 'function') return '';
-  try {
-    const snapshot = localeService.getSnapshot();
-    return snapshot && snapshot.active !== undefined ? String(snapshot.active) : '';
-  } catch (error) {
-    return '';
-  }
-}
-
-function useActiveLocale(localeService) {
-  const [active, setActive] = React.useState(() => readActiveLocale(localeService));
-  React.useEffect(() => {
-    setActive(readActiveLocale(localeService));
-    if (!localeService || typeof localeService.subscribe !== 'function') return undefined;
-    let disposed = false;
-    const unsubscribe = localeService.subscribe(() => {
-      if (!disposed) setActive(readActiveLocale(localeService));
-    });
-    return () => {
-      disposed = true;
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
-  }, [localeService]);
-  return active;
 }
 
 function PanelStyles() {

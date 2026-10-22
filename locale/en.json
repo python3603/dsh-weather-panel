@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Weather Panel",
-    "description": "A sidebar weather panel that locates you by network and shows current conditions plus a 3-day forecast (Open-Meteo, no API key)."
+    "description": "A sidebar weather panel: network location, current conditions, 3-day and 24-hour forecasts, hourly precipitation, CMA weather alerts and typhoon tracks — with a startup notice when it rains or an alert is active."
   }
 }

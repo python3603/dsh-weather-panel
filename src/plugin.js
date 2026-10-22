@@ -1,14 +1,14 @@
 /**
- * Client entry: what this plugin registers, and how it cleans up.
+ * Client entry: what this plugin registers and how it cleans up.
  *
- * Two additive seats only, both standard list/keyed registrations:
- * - `main` keyed by our own panel id — the page shown when the sidebar icon is
- *   picked. A fresh key adds a page beside the host's; it replaces nothing.
- * - `sidebar.panellist` with our own id — one more icon in the rail, sized by
- *   the host's own `size` prop.
+ * Three additive seats, all with our own ids — nothing shipped is replaced and
+ * no other plugin's DOM is touched:
+ * - `main` keyed by our own panel id (the weather page),
+ * - `sidebar.panellist` with our own id (the rail icon),
+ * - `shell.overlay` with our own id (the startup notice).
  *
- * Reusing the host's ids, replacing slots, or touching another plugin's DOM
- * would be the incompatible way to do the same thing, so none of that happens.
+ * Data lives in one store shared by the panel and the notice, so the notice can
+ * check alerts at page boot while the panel is still closed.
  */
 
 function apply(ctx) {
@@ -21,6 +21,18 @@ function apply(ctx) {
   ctx.inject(['layout'], scoped => {
     layout = scoped && scoped.layout ? scoped.layout : null;
   });
+
+  const language = () => {
+    try {
+      const snapshot = typeof ctx.locale.getSnapshot === 'function' ? ctx.locale.getSnapshot() : null;
+      return snapshot && String(snapshot.active || '').toLowerCase().startsWith('en') ? 'en' : 'zh';
+    } catch (error) {
+      return 'zh';
+    }
+  };
+
+  const translate = makeTranslate(rawTranslate, language());
+  const store = createWeatherStore();
 
   /** Sidebar label; the host re-reads this thunk, so it follows the language. */
   const navLabel = () => {
@@ -58,12 +70,19 @@ function apply(ctx) {
     }
   };
 
+  // The data store starts immediately: the notice has to know about today's
+  // rain and alerts even if the user never opens the panel.
+  ctx.effect(() => {
+    store.start({ lang: language(), translate });
+    return () => store.dispose();
+  }, 'dsh-weather-panel: data store and ten-minute refresh');
+
   ctx.effect(() => {
     const disposePanel = ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main',
       key: PANEL_ID,
       locale: namespace,
-      inject: () => ({ t: rawTranslate, locale: ctx.locale, closePanel })
+      inject: () => ({ t: rawTranslate, locale: ctx.locale, closePanel, store })
     }, WeatherPanel));
 
     const disposeEntry = ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
@@ -74,10 +93,19 @@ function apply(ctx) {
       locale: namespace
     }, PanelNavIcon));
 
+    const disposeNotice = ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+      name: 'shell.overlay',
+      id: `${PANEL_ID}-notice`,
+      order: 30,
+      locale: namespace,
+      inject: () => ({ t: rawTranslate, locale: ctx.locale, store })
+    }, WeatherNotice));
+
     return () => {
       closePanel();
+      safely(disposeNotice);
       safely(disposeEntry);
       safely(disposePanel);
     };
-  }, 'dsh-weather-panel: main panel and sidebar entry');
+  }, 'dsh-weather-panel: panel, sidebar entry and startup notice');
 }

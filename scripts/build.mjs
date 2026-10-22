@@ -22,16 +22,23 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
-/** Concatenation order: data → presentation → registration. */
+/** Concatenation order: data → state → presentation → registration. */
 const MODULES = [
   'src/lib/i18n.js',
   'src/lib/wmo.js',
   'src/lib/format.js',
   'src/lib/cache.js',
+  'src/lib/alerts.js',
+  'src/lib/typhoon.js',
   'src/lib/geo.js',
   'src/lib/weather.js',
+  'src/lib/notice-core.js',
+  'src/lib/store.js',
   'src/ui/styles.js',
   'src/ui/icons.js',
+  'src/ui/chart.js',
+  'src/ui/typhoon-view.js',
+  'src/ui/notice.js',
   'src/ui/panel.js',
   'src/plugin.js'
 ];

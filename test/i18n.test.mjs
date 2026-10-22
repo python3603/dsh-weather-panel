@@ -28,7 +28,17 @@ test('keys the panel actually renders are all present', () => {
     'day.high', 'day.low', 'forecast.title', 'hourly.title', 'hourly.now', 'location.title',
     'location.description', 'location.auto', 'location.gps', 'location.searchTitle',
     'location.placeholder', 'location.searching', 'location.noResult', 'footer.weather',
-    'footer.location', 'footer.license', 'footer.note'
+    'footer.location', 'footer.alerts', 'footer.license', 'footer.note',
+    'proxy.hint', 'proxy.action', 'chart.title', 'chart.amount', 'chart.chance', 'chart.empty',
+    'tab.weather', 'tab.typhoon', 'alerts.title', 'alerts.none', 'alerts.count', 'alerts.scopeCity',
+    'alerts.scopeRegion', 'alerts.more', 'alerts.source', 'alerts.openAll',
+    'alert.level.blue', 'alert.level.yellow', 'alert.level.orange', 'alert.level.red',
+    'notice.title', 'notice.rainTitle', 'notice.rainBody', 'notice.alertTitle', 'notice.alertBody',
+    'notice.confirm', 'notice.dismiss', 'notice.more', 'notice.source',
+    'typhoon.title', 'typhoon.active', 'typhoon.ended', 'typhoon.none', 'typhoon.latest',
+    'typhoon.pressure', 'typhoon.wind', 'typhoon.move', 'typhoon.forecast', 'typhoon.peak',
+    'typhoon.meaning', 'typhoon.source', 'typhoon.select', 'typhoon.hint', 'typhoon.windRadius',
+    'typhoon.updated', 'typhoon.noForecast'
   ];
   for (const key of required) {
     assert.ok(key in WEATHER_DICT.zh, `zh:${key}`);
