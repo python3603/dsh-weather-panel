@@ -30,8 +30,21 @@ const PANEL_BASE_CSS = `
 .dshw-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#4f6ef7);outline-offset:1px;}
 .dshw-btn[disabled]{opacity:.55;cursor:default;}
 .dshw-btn-icon{width:30px;padding:0;}
-.dshw-btn-primary{background:var(--dsw-alias-brand-primary,#4f6ef7);border-color:transparent;color:#fff;}
-.dshw-btn-primary:hover{background:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f6ef7) 88%,#000);}
+/*
+ * The confirm action deliberately does NOT put white text on the brand colour:
+ * with a pale brand (custom light themes) that combination is unreadable, which
+ * is exactly what happened with the notice's "知道了". A neutral surface plus
+ * the theme's own label colour is legible in every theme, and a brand-tinted
+ * ring keeps it looking like the primary action.
+ */
+.dshw-btn-primary{
+  background:var(--dsw-alias-bg-layer-1,#fff);
+  border-color:var(--dsw-alias-border-l2,#d1d5db);
+  color:var(--dsw-alias-label-primary,#1f2328);
+  font-weight:600;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-brand-primary,#4f6ef7) 45%,transparent);
+}
+.dshw-btn-primary:hover{background:var(--dsw-alias-bg-layer-2,#f3f4f6);}
 .dshw-chip{
   display:inline-flex;align-items:center;gap:4px;
   border:1px solid var(--dsw-alias-border-l1,#e5e7eb);
@@ -41,11 +54,11 @@ const PANEL_BASE_CSS = `
   color:var(--dsw-alias-label-secondary,#6b7280);
   font-size:11px;line-height:16px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;
 }
-.dshw-chip-busy{color:var(--dsw-alias-brand-primary,#4f6ef7);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f6ef7) 35%,transparent);}
+.dshw-chip-busy{color:var(--dsw-alias-label-secondary,#6b7280);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f6ef7) 45%,transparent);}
 .dshw-chip-warn{color:var(--dsw-alias-state-warn-primary,#b45309);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b45309) 40%,transparent);}
 .dshw-chip-active{color:var(--dsw-alias-state-error-primary,#dc2626);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary,#dc2626) 40%,transparent);}
 .dshw-note{margin:0;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8b93a1);}
-.dshw-link{font-size:11px;line-height:16px;color:var(--dsw-alias-brand-primary,#4f6ef7);text-decoration:none;white-space:nowrap;}
+.dshw-link{font-size:11px;line-height:16px;color:var(--dsw-alias-label-primary,#1f2328);text-decoration:underline;text-underline-offset:2px;white-space:nowrap;}
 .dshw-link:hover{text-decoration:underline;}
 .dshw-level-chip{
   flex:none;display:inline-flex;align-items:center;justify-content:center;
@@ -140,7 +153,7 @@ const PANEL_BODY_CSS = `
 .dshw-hour:hover{background:var(--dsw-alias-bg-layer-2,#f3f4f6);}
 .dshw-hour-time{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary,#6b7280);font-variant-numeric:tabular-nums;white-space:nowrap;}
 .dshw-hour-temp{font-size:12px;line-height:18px;font-weight:600;font-variant-numeric:tabular-nums;}
-.dshw-hour-pop{font-size:10px;line-height:14px;color:var(--dsw-alias-brand-primary,#4f6ef7);font-variant-numeric:tabular-nums;}
+.dshw-hour-pop{font-size:10px;line-height:14px;color:var(--dsw-alias-label-secondary,#6b7280);font-variant-numeric:tabular-nums;}
 .dshw-tabs{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--dsw-alias-border-l1,#e5e7eb);border-radius:9px;background:var(--dsw-alias-bg-layer-1,#fff);align-self:flex-start;}
 .dshw-tab{
   appearance:none;border:0;background:transparent;color:var(--dsw-alias-label-secondary,#6b7280);
@@ -220,10 +233,10 @@ const PANEL_BODY_CSS = `
   margin-left:auto;flex:none;pointer-events:auto;
   appearance:none;display:inline-flex;align-items:center;gap:3px;
   height:18px;padding:0 6px;border-radius:5px;
-  border:1px solid var(--dsw-alias-border-l1,#e5e7eb);
+  border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#4f6ef7) 45%,transparent);
   background:var(--dsw-alias-bg-layer-1,#fff);
-  color:var(--dsw-alias-brand-primary,#4f6ef7);
-  font:inherit;font-size:10px;line-height:16px;cursor:pointer;white-space:nowrap;
+  color:var(--dsw-alias-label-primary,#1f2328);
+  font:inherit;font-size:10px;line-height:16px;font-weight:600;cursor:pointer;white-space:nowrap;
 }
 .dshw-map-card-action:hover{background:var(--dsw-alias-bg-layer-2,#f3f4f6);}
 .dshw-map-card-action:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#4f6ef7);outline-offset:1px;}
