@@ -428,7 +428,8 @@ function WeatherPanel(props) {
   }, [tab, typhoonAvailable]);
 
   const closePanel = props ? props.closePanel : null;
-  const units = state.settings.units;
+  const settings = state.settings;
+  const units = settings.units;
   const forecast = state.forecast;
   const current = forecast ? forecast.current : null;
   const daily = forecast ? forecast.daily : [];

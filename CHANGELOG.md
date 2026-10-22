@@ -2,6 +2,18 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.4] - 2026-10-22
+
+修复「一点更换位置整个面板消失」。
+
+### 修复
+- **崩溃根因**：面板渲染位置选择器时传了 `settings`，但 `WeatherPanel` 里只有 `state.settings`，没有这个变量。选择器一展开就抛 `ReferenceError`，React 卸载整棵子树 → 面板空白。
+- 现在在 `WeatherPanel` 顶部取 `const settings = state.settings;` 并复用给 `units`，选择器可正常展开（高精度开关、预览弹窗按钮都在里面）。
+
+### 测试
+- 新增 **渲染冒烟测试**（`test/render.test.mjs`）：在 `vm` 里启动真实 bundle，用极简 React shim（useState/useEffect/useMemo/useRef/useSyncExternalStore）真正走一遍组件树，覆盖「天气页 / 位置选择器展开 / 台风页 / 选中历史点 / 提醒弹窗 / 侧边栏图标」六个场景。
+- 已验证这条路能拦住该 bug：把修复撤掉后 4 个渲染用例立刻失败；恢复后全绿。
+- 用例 81 → 87。
 ## [1.2.3] - 2026-10-22
 
 ### 新增

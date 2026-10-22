@@ -106,7 +106,7 @@
 │   └── plugin.js         # 注册入口（三个席位 + store 生命周期）
 ├── scripts/build.mjs     # 零依赖打包：拼接 src → client.js
 ├── scripts/build-basemap.mjs # 生成离线海岸线（Natural Earth 裁剪+抽稀）
-└── test/*.test.mjs       # node:test，75 个用例
+└── test/*.test.mjs       # node:test，87 个用例（含渲染冒烟测试）
 ```
 
 ## 开发
