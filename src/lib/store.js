@@ -119,6 +119,96 @@ export function writePanelSettings(settings) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Demo alerts (for checking the notice without waiting for weather)   */
+/* ------------------------------------------------------------------ */
+
+const DEMO_STORAGE_KEY = `${PANEL_ID}:demo-alert`;
+
+const DEMO_ALERT_PRESETS = {
+  'typhoon-red': {
+    title: '山东省青岛市气象台发布台风红色预警信号',
+    type: '台风',
+    typeEn: 'Typhoon',
+    level: 'red',
+    levelZh: '红色',
+    levelEn: 'Red',
+    levelRank: 4,
+    place: '山东省青岛市'
+  },
+  'rain-orange': {
+    title: '山东省青岛市气象台发布暴雨橙色预警信号',
+    type: '暴雨',
+    typeEn: 'Rainstorm',
+    level: 'orange',
+    levelZh: '橙色',
+    levelEn: 'Orange',
+    levelRank: 3,
+    place: '山东省青岛市'
+  }
+};
+
+/** Which demo alert the user asked for, or `''` when demo mode is off. */
+export function readDemoAlertKind() {
+  try {
+    const raw = getPanelStorage().getItem(DEMO_STORAGE_KEY);
+    return typeof raw === 'string' ? raw.trim() : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+/** Turn demo mode on for one preset (the next refresh injects it). */
+export function setDemoAlertKind(kind) {
+  try {
+    const preset = String(kind || '').trim();
+    if (preset) getPanelStorage().setItem(DEMO_STORAGE_KEY, preset);
+    else getPanelStorage().removeItem(DEMO_STORAGE_KEY);
+  } catch (error) {
+    /* storage blocked: demo simply does not start */
+  }
+}
+
+/** Turn demo mode off; the next refresh loads the real alert feed again. */
+export function clearDemoAlert() {
+  setDemoAlertKind('');
+}
+
+/**
+ * Build a fake alert for the notice test.
+ *
+ * Only used when `dsh-weather-panel:demo-alert` is set to a preset name; the
+ * real alert pipeline is untouched, so nothing here can fire by accident.
+ */
+export function buildDemoAlert(kind, nowMs) {
+  const preset = DEMO_ALERT_PRESETS[String(kind || '').trim()];
+  if (!preset) return null;
+  const now = new Date(Number.isFinite(nowMs) ? nowMs : Date.now());
+  const pad = value => String(value).padStart(2, '0');
+  return {
+    id: `demo:${kind}`,
+    title: preset.title,
+    issuedAt: now.getTime(),
+    issuedText: `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    url: 'https://www.nmc.cn/publish/alarm.html',
+    pic: '',
+    type: preset.type,
+    typeEn: preset.typeEn,
+    level: preset.level,
+    levelZh: preset.levelZh,
+    levelEn: preset.levelEn,
+    levelRank: preset.levelRank,
+    place: preset.place,
+    scope: 'city',
+    demo: true
+  };
+}
+
+/** Preset names available to the demo switch. */
+export function demoAlertKinds() {
+  return Object.keys(DEMO_ALERT_PRESETS);
+}
+
+/* ------------------------------------------------------------------ */
 /* Network                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -421,6 +511,12 @@ export function createWeatherStore() {
     })());
 
     tasks.push((async () => {
+      const demo = buildDemoAlert(readDemoAlertKind());
+      if (demo) {
+        if (!alive(run)) return;
+        emit({ alerts: [demo], alertsScanned: 1, alertsCheckedAt: Date.now() });
+        return;
+      }
       const result = await loadAlerts(location, controller.signal, force);
       if (!alive(run)) return;
       emit({ alerts: result.alerts, alertsScanned: result.scanned, alertsCheckedAt: result.checkedAt });
@@ -556,6 +652,15 @@ export function createWeatherStore() {
       } catch (error) {
         /* keep the previous track; the UI shows the cached one */
       }
+    },
+    /** Inject a fake alert to inspect the notice; cleared when acknowledged. */
+    showDemoAlert(kind) {
+      setDemoAlertKind(kind || 'typhoon-red');
+      refresh({ force: true });
+    },
+    stopDemoAlert() {
+      clearDemoAlert();
+      refresh({ force: true });
     }
   };
 }

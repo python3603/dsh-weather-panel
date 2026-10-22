@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
   PANEL_ID,
+  buildDemoAlert,
+  demoAlertKinds,
+  readDemoAlertKind,
   placeCacheKey,
   readNoticeState,
   readPanelSettings,
@@ -78,4 +81,24 @@ test('today is keyed in local time', () => {
   assert.equal(todayKey(new Date(2026, 9, 22, 20, 1)), '2026-10-22');
   assert.equal(todayKey(new Date(2026, 0, 5, 0, 0)), '2026-01-05');
   assert.match(PANEL_ID, /^dsh-weather-panel$/);
+});
+
+test('the demo alert builds a red typhoon warning for the notice test', () => {
+  const alert = buildDemoAlert('typhoon-red', Date.UTC(2026, 9, 22, 12, 30));
+  assert.equal(alert.id, 'demo:typhoon-red');
+  assert.equal(alert.level, 'red');
+  assert.equal(alert.levelRank, 4);
+  assert.equal(alert.type, '台风');
+  assert.equal(alert.scope, 'city');
+  assert.match(alert.title, /台风红色预警信号/);
+  assert.equal(alert.demo, true);
+  assert.match(alert.issuedText, /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}$/);
+});
+
+test('unknown demo presets are ignored and the switch defaults to off', () => {
+  assert.equal(buildDemoAlert('nope'), null);
+  assert.equal(buildDemoAlert(''), null);
+  assert.equal(buildDemoAlert(undefined), null);
+  assert.deepEqual(demoAlertKinds().sort(), ['rain-orange', 'typhoon-red']);
+  assert.equal(typeof readDemoAlertKind(), 'string', 'always readable, even without storage');
 });

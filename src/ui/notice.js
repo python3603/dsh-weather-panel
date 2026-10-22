@@ -60,7 +60,10 @@ function WeatherNotice(props) {
     stored,
     handled,
     date,
-    hasForecast: Boolean(state.forecast)
+    hasForecast: Boolean(state.forecast),
+    // Demo mode ignores the acknowledgements so the dialog can be inspected
+    // again on every reload; the real path never sets this.
+    force: Boolean(readDemoAlertKind())
   });
 
   React.useEffect(() => {
@@ -76,6 +79,12 @@ function WeatherNotice(props) {
   function acknowledge() {
     writeNoticeState({ date, signature, confirmedAt: Date.now() });
     setHandled(signature);
+    // A demo alert is a one-shot preview: acknowledging it clears the switch so
+    // the next refresh goes back to the real feed instead of nagging forever.
+    if (alerts.some(alert => alert.demo)) {
+      clearDemoAlert();
+      store.refresh({ force: true });
+    }
   }
 
   if (!visible) return null;

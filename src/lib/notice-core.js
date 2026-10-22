@@ -43,8 +43,13 @@ export function shouldNotify(input) {
   const summary = input.summary;
   const alerts = Array.isArray(input.alerts) ? input.alerts : [];
   const rain = Boolean(summary && summary.willRain);
-  if (!input.hasForecast) return false;
-  if (!rain && alerts.length === 0) return false;
+  const hasAlerts = alerts.length > 0;
+  // Alerts stand on their own: an NMC alert must still be shown when the
+  // Open-Meteo request failed, so the forecast is only required for rain.
+  if (!hasAlerts && !(input.hasForecast && rain)) return false;
+  // Demo mode (a fake alert injected on purpose) ignores the acknowledgements so
+  // the dialog can be inspected repeatedly without clearing storage each time.
+  if (input.force === true) return true;
   const signature = noticeSignature(summary, alerts);
   if (input.handled && input.handled === signature) return false;
   if (input.stored && input.stored.date === input.date && input.stored.signature === signature) return false;

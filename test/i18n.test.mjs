@@ -28,7 +28,7 @@ test('keys the panel actually renders are all present', () => {
     'day.high', 'day.low', 'forecast.title', 'hourly.title', 'hourly.now', 'location.title',
     'location.description', 'location.auto', 'location.gps', 'location.searchTitle',
     'location.placeholder', 'location.searching', 'location.noResult', 'location.precise',
-    'location.preciseHint', 'location.gpsFallback', 'panel.subtitleGpsAccurate',
+    'location.preciseHint', 'location.gpsFallback', 'location.previewNotice', 'location.previewNoticeHint', 'panel.subtitleGpsAccurate',
     'footer.weather',
     'footer.location', 'footer.alerts', 'footer.license', 'footer.note',
     'proxy.hint', 'proxy.action', 'chart.title', 'chart.amount', 'chart.chance', 'chart.empty',

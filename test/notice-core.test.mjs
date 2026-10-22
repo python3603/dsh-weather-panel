@@ -68,3 +68,17 @@ test('the notice appears for rain or alerts, and respects acknowledgements', () 
   );
   assert.notEqual(escalated, signature);
 });
+
+test('an alert is shown even when the forecast request failed', () => {
+  const alerting = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-22', hasForecast: false };
+  assert.equal(shouldNotify(alerting), true, 'NMC alerts do not depend on Open-Meteo');
+  assert.equal(shouldNotify({ ...alerting, summary: summarizeToday(FORECAST_RAIN) }), true);
+});
+
+test('demo mode ignores acknowledgements but still needs something to say', () => {
+  const alerting = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-22', hasForecast: false };
+  const signature = noticeSignature(null, [ALERT]);
+  assert.equal(shouldNotify({ ...alerting, stored: { date: '2026-10-22', signature }, force: true }), true);
+  assert.equal(shouldNotify({ ...alerting, handled: signature, force: true }), true);
+  assert.equal(shouldNotify({ ...alerting, alerts: [], summary: null, force: true }), false, 'nothing to show');
+});

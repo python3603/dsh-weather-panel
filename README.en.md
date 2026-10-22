@@ -122,6 +122,23 @@ checkout and the Harness reads that entry file directly.
 - The device-location switch depends on browser permission: turning it on asks once, and a denial or missing geolocation falls back to the network location with a visible note (the switch itself stays on for the next start).
 - `°F` only affects display; requests are always metric.
 
+## Testing the startup notice
+
+Panel → "Change location" → "**Preview the notice**" fires the startup dialog immediately with a
+**demo** red typhoon warning — no need to wait for real weather, and real data is untouched:
+
+- the demo value only lives in `dsh-weather-panel:demo-alert`; it never enters the alert cache or
+  the real matching path;
+- acknowledging the dialog clears the demo switch automatically, back to real data;
+- demo mode ignores the per-day acknowledgement, so the dialog can be inspected repeatedly;
+- from the browser console (Ctrl+Shift+I in Electron) you can also drive it directly:
+
+  ```js
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'typhoon-red'); location.reload();  // red typhoon
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'rain-orange'); location.reload();  // orange rainstorm
+  localStorage.removeItem('dsh-weather-panel:demo-alert');
+  localStorage.removeItem('dsh-weather-panel:notice'); location.reload();                  // full reset
+  ```
 ## Before publishing to GitHub
 
 Replace `REPLACE_WITH_YOUR_GITHUB_USERNAME` in `package.json` once the repository exists.

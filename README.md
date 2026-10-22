@@ -143,6 +143,21 @@ npm run check   # 三连
 
 全部清掉即回到「全新安装」行为，下一次打开会重新弹提醒。
 
+## 测试提醒弹窗
+
+面板 →「更换位置」→ 点「**预览提醒弹窗**」，立刻用一条**演示用**的台风红色预警触发启动提醒（不需要等真预警，也不动真实数据）：
+
+- 演示数据只写 `dsh-weather-panel:demo-alert`，不参与真实预警匹配，也不会进缓存；
+- 弹窗里点「知道了」会自动清掉演示开关，回到真实数据；
+- 演示模式下会忽略「今日已确认」的去重，方便反复查看样式；
+- 也可以在浏览器控制台手动切换（Electron 里 Ctrl+Shift+I 打开 DevTools）：
+
+  ```js
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'typhoon-red'); location.reload();  // 台风红色
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'rain-orange'); location.reload();  // 暴雨橙色
+  localStorage.removeItem('dsh-weather-panel:demo-alert');
+  localStorage.removeItem('dsh-weather-panel:notice'); location.reload();                  // 完全复位
+  ```
 ## 上传到 GitHub 前
 
 `package.json` 里的 `repository / bugs / homepage` 用了占位用户名

@@ -234,7 +234,7 @@ function ProxyHint(props) {
 }
 
 function LocationPicker(props) {
-  const { t, lang, settings, onClose, onAuto, onTogglePrecise, onSelect } = props;
+  const { t, lang, settings, onClose, onAuto, onTogglePrecise, onPreviewNotice, onSelect } = props;
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState([]);
   const [status, setStatus] = React.useState('idle');
@@ -297,7 +297,13 @@ function LocationPicker(props) {
       }, h('span', { className: 'dshw-switch-knob' }))
     ),
     h('div', { className: 'dshw-picker-actions' },
-      h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto'))
+      h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto')),
+      h('button', {
+        type: 'button',
+        className: 'dshw-btn',
+        onClick: onPreviewNotice,
+        title: t('location.previewNoticeHint')
+      }, h(RefreshGlyph, { size: 13 }), t('location.previewNotice'))
     ),
     h('label', { className: 'dshw-search' },
       h('span', { className: 'dshw-search-icon' }, h(SearchGlyph)),
@@ -507,6 +513,10 @@ function WeatherPanel(props) {
           },
           onTogglePrecise: enabled => {
             store.setPreciseLocation(enabled);
+            setPickerOpen(false);
+          },
+          onPreviewNotice: () => {
+            store.showDemoAlert('typhoon-red');
             setPickerOpen(false);
           },
           onSelect: city => {
