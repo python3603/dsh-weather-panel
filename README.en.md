@@ -62,8 +62,21 @@ the startup notice; caches are written to `localStorage`.
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
 
-## Interface
+## Screenshots
 
+<div align="center">
+  <img src="docs/screenshots/panel-weather.webp" alt="Weather tab: current conditions, eight parameters, five-day forecast and hourly precipitation" width="100%" />
+  <br/>
+  <sub>Weather tab — current conditions, eight parameters, five-day forecast, hourly chart and 24-hour strip (location label redacted in the shot)</sub>
+</div>
+
+<div align="center">
+  <img src="docs/screenshots/panel-typhoon.webp" alt="Typhoon tab: observed track, forecast track, intensity colours and wind radii" width="100%" />
+  <br/>
+  <sub>Typhoon tab — observed track coloured by intensity, dashed forecast track, wind radii, reference cities and graticule</sub>
+</div>
+
+## Interface
 - **Weather tab**: current-condition card (eight parameters), five forecast cards, the hourly chart and a 24-hour strip.
 - **Typhoon tab**: appears whenever there is an active or most recent system. The chart is drawn with an
   equirectangular projection: graticule, eight reference cities, observed track coloured by intensity, a
@@ -135,6 +148,7 @@ cordis.patch.yml        inserts one Host plugin row
 index.js                Host half: intentionally empty
 client.js               built artifact (npm run build)
 docs/assets/            README artwork (original SVG) and stickers
+docs/screenshots/       real UI screenshots (location label redacted)
 src/lib/                pure logic: i18n, links, wmo, format, cache, geo,
                         weather, alerts, typhoon, notice-core, store
 src/ui/                 styles, icons, chart, basemap-data, typhoon-view,
