@@ -110,7 +110,7 @@ const PANEL_BODY_CSS = `
 .dshw-section{display:flex;flex-direction:column;gap:8px;min-width:0;}
 .dshw-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 2px;}
 .dshw-section-title{margin:0;font-size:13px;line-height:20px;font-weight:600;}
-.dshw-forecast{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.dshw-forecast{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;}
 .dshw-day{display:flex;flex-direction:column;gap:10px;padding:14px;}
 .dshw-day-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;}
 .dshw-day-name{font-size:13px;line-height:20px;font-weight:600;}
@@ -196,6 +196,7 @@ const PANEL_BODY_CSS = `
 .dshw-typhoon-map{display:flex;flex-direction:column;gap:8px;padding:12px;}
 .dshw-typhoon-svg{width:100%;height:auto;display:block;border-radius:8px;}
 .dshw-map-bg{fill:var(--dsw-alias-bg-layer-2,#f3f4f6);fill-opacity:.55;}
+.dshw-land{fill:var(--dsw-alias-bg-layer-1,#fff);fill-opacity:.82;stroke:var(--dsw-alias-border-l2,#d1d5db);stroke-width:.7;stroke-linejoin:round;}
 .dshw-grid-line{stroke:var(--dsw-alias-border-l1,#e5e7eb);stroke-width:.7;stroke-dasharray:2 4;}
 .dshw-grid-label{fill:var(--dsw-alias-label-tertiary,#8b93a1);font-size:9px;}
 .dshw-ref-city circle{fill:var(--dsw-alias-label-tertiary,#8b93a1);}

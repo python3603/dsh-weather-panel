@@ -128,6 +128,29 @@ function TyphoonLegend(props) {
   );
 }
 
+/**
+ * Build one SVG path for every land ring that touches the current view.
+ *
+ * The rings come from the generated `BASEMAP_LAND` (Natural Earth, public
+ * domain): land only, no borders. Rendering them with the same projection as the
+ * track keeps the coastline and the track aligned, and skipping rings outside
+ * the view keeps the DOM to a single <path>.
+ */
+function landPathFor(bounds, project) {
+  let path = '';
+  for (const ring of BASEMAP_LAND) {
+    if (ring[2] < bounds.west || ring[0] > bounds.east || ring[3] < bounds.south || ring[1] > bounds.north) continue;
+    let ringPath = '';
+    for (let index = 4; index < ring.length; index += 2) {
+      const x = project.x(ring[index]).toFixed(1);
+      const y = project.y(ring[index + 1]).toFixed(1);
+      ringPath += `${index === 4 ? 'M' : 'L'}${x} ${y}`;
+    }
+    if (ringPath) path += `${ringPath}Z`;
+  }
+  return path;
+}
+
 /** The typhoon tab body. */
 function TyphoonView(props) {
   const { typhoon, typhoonList, t, lang, onSelectTyphoon } = props;
@@ -137,19 +160,31 @@ function TyphoonView(props) {
     setSelectedIndex(-1);
   }, [typhoon && typhoon.id]);
 
+  // The projection and the (several-kilobyte) land path only depend on the
+  // track, so they are computed once per typhoon instead of per render — a click
+  // on a track point re-renders the view and must not rebuild the coastline.
+  const geometry = React.useMemo(() => {
+    if (!typhoon) return null;
+    const viewBounds = trackBounds(typhoon, 3);
+    if (!viewBounds) return null;
+    const viewProjection = createProjection(viewBounds);
+    return { bounds: viewBounds, project: viewProjection, land: landPathFor(viewBounds, viewProjection) };
+  }, [typhoon]);
+
   if (!typhoon) {
     return h('section', { className: 'dshw-card' },
       h('p', { className: 'dshw-note' }, t('typhoon.none'))
     );
   }
 
-  const bounds = trackBounds(typhoon, 3);
-  if (!bounds) {
+  if (!geometry) {
     return h('section', { className: 'dshw-card' },
       h('p', { className: 'dshw-note' }, t('typhoon.none'))
     );
   }
-  const project = createProjection(bounds);
+
+  const bounds = geometry.bounds;
+  const project = geometry.project;
   const points = typhoon.points || [];
   const forecast = typhoon.forecast || [];
   const latest = typhoon.latest || points[points.length - 1];
@@ -221,7 +256,13 @@ function TyphoonView(props) {
               `${item.nameZh || item.nameEn} ${formatTyphoonNumber(item.number, lang)}`
             )))
           )
-          : null
+          : null,
+        h('a', {
+          className: 'dshw-btn',
+          href: 'https://typhoon.nmc.cn/web.html',
+          target: '_blank',
+          rel: 'noreferrer noopener'
+        }, t('typhoon.official'))
       ),
       h('div', { className: 'dshw-typhoon-stats' },
         h('div', { className: 'dshw-param' },
@@ -260,6 +301,7 @@ function TyphoonView(props) {
         'aria-label': t('typhoon.title')
       },
         h('rect', { x: 0, y: 0, width: TYPHOON_MAP_WIDTH, height: TYPHOON_MAP_HEIGHT, className: 'dshw-map-bg' }),
+        h('path', { className: 'dshw-land', d: geometry.land }),
         graticuleFor(bounds, project),
         referenceCities(bounds, project, lang),
         windRadiusRings(latest, project),
@@ -278,7 +320,7 @@ function TyphoonView(props) {
     selectedPointDetail(selected, t, lang),
 
     h('p', { className: 'dshw-note dshw-typhoon-source' },
-      [t('typhoon.source'), latest && latest.timeText ? latest.timeText : ''].filter(Boolean).join(' · ')
+      [t('typhoon.source'), latest && latest.timeText ? latest.timeText : '', t('typhoon.land')].filter(Boolean).join(' · ')
     )
   );
 }

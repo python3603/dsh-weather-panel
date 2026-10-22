@@ -37,6 +37,7 @@ const MODULES = [
   'src/ui/styles.js',
   'src/ui/icons.js',
   'src/ui/chart.js',
+  'src/ui/basemap-data.js',
   'src/ui/typhoon-view.js',
   'src/ui/notice.js',
   'src/ui/panel.js',

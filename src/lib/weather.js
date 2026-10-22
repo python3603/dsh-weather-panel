@@ -12,7 +12,8 @@
  */
 
 export const FORECAST_ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
-export const FORECAST_DAYS = 4;
+/** Today plus the five days the panel shows as "未来 5 天". */
+export const FORECAST_DAYS = 6;
 export const UPCOMING_HOURS = 24;
 
 export const CURRENT_VARIABLES = [

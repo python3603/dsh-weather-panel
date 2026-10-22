@@ -7,7 +7,7 @@
  * element (see styles.js) so nothing leaks globally.
  */
 
-const PANEL_FORECAST_DAYS = 3;
+const PANEL_FORECAST_DAYS = 5;
 const PANEL_STALE_AFTER_MS = 30 * 60 * 1000;
 
 function readActiveLocale(localeService) {
