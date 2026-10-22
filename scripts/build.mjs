@@ -25,6 +25,7 @@ const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 /** Concatenation order: data → state → presentation → registration. */
 const MODULES = [
   'src/lib/i18n.js',
+  'src/lib/links.js',
   'src/lib/wmo.js',
   'src/lib/format.js',
   'src/lib/cache.js',

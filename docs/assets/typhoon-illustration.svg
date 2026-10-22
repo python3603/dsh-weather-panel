@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="Stylised typhoon track chart: coastline, graticule, observed track, forecast track and wind radii">
+  <title>Typhoon track chart (illustration)</title>
+  <defs>
+    <marker id="trackArrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#4f6ef7"/>
+    </marker>
+    <clipPath id="chart"><rect x="0" y="0" width="900" height="360" rx="14"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#chart)">
+    <rect x="0" y="0" width="900" height="360" fill="#f4f8ff"/>
+
+    <!-- graticule -->
+    <g stroke="#dfe8f5" stroke-width="1" stroke-dasharray="3 6">
+      <path d="M120 0v360"/><path d="M240 0v360"/><path d="M360 0v360"/><path d="M480 0v360"/><path d="M600 0v360"/><path d="M720 0v360"/><path d="M840 0v360"/>
+      <path d="M0 72h900"/><path d="M0 144h900"/><path d="M0 216h900"/><path d="M0 288h900"/>
+    </g>
+
+    <!-- land -->
+    <path d="M0 0H150L176 44L206 92L186 132L214 170L196 206L224 244L186 284L150 320L96 344L0 360Z"
+          fill="#e9eff8" stroke="#cfdae9" stroke-width="2"/>
+
+    <!-- wind radii around the latest fix -->
+    <g fill="#4f6ef7" fill-opacity="0.06" stroke="#4f6ef7" stroke-opacity="0.28" stroke-width="1.4">
+      <ellipse cx="470" cy="206" rx="96" ry="66"/>
+      <ellipse cx="470" cy="206" rx="66" ry="46"/>
+      <ellipse cx="470" cy="206" rx="38" ry="26"/>
+    </g>
+
+    <!-- observed track -->
+    <polyline points="826,326 762,296 700,272 640,252 584,234 528,218 470,206"
+              fill="none" stroke="#94a3b8" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+
+    <!-- forecast track -->
+    <polyline points="470,206 412,190 352,174 300,160"
+              fill="none" stroke="#4f6ef7" stroke-width="3" stroke-dasharray="8 7" stroke-linejoin="round" marker-end="url(#trackArrow)"/>
+
+    <!-- observed fixes -->
+    <g stroke="#ffffff" stroke-width="2">
+      <circle cx="826" cy="326" r="7" fill="#7dd3fc"/>
+      <circle cx="762" cy="296" r="7" fill="#38bdf8"/>
+      <circle cx="700" cy="272" r="7" fill="#34d399"/>
+      <circle cx="640" cy="252" r="7" fill="#fbbf24"/>
+      <circle cx="584" cy="234" r="7" fill="#fb923c"/>
+      <circle cx="528" cy="218" r="7" fill="#fb923c"/>
+      <circle cx="470" cy="206" r="9" fill="#ef4444"/>
+    </g>
+    <circle cx="470" cy="206" r="20" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 4" stroke-opacity="0.75"/>
+
+    <!-- forecast fixes -->
+    <g stroke-width="2.5">
+      <circle cx="412" cy="190" r="6" fill="#ffffff" stroke="#4f6ef7"/>
+      <circle cx="352" cy="174" r="6" fill="#ffffff" stroke="#4f6ef7"/>
+      <circle cx="300" cy="160" r="6" fill="#ffffff" stroke="#4f6ef7"/>
+    </g>
+    <g fill="#7c8aa3" font-size="11" font-family="'Inter','Segoe UI',sans-serif">
+      <text x="422" y="184">+24h</text>
+      <text x="362" y="168">+48h</text>
+      <text x="310" y="154">+72h</text>
+    </g>
+
+    <!-- reference city -->
+    <g font-family="'Inter','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" fill="#94a3b8" font-size="11">
+      <circle cx="196" cy="150" r="3"/>
+      <text x="204" y="154">Qingdao</text>
+      <circle cx="236" cy="236" r="3"/>
+      <text x="244" y="240">Shanghai</text>
+    </g>
+
+    <!-- legend -->
+    <g transform="translate(24,24)" font-family="'Inter','Segoe UI',sans-serif" font-size="11" fill="#7c8aa3">
+      <rect x="-8" y="-18" width="474" height="34" rx="8" fill="#ffffff" fill-opacity="0.86" stroke="#dbe3ef"/>
+      <circle cx="6" cy="-1" r="5" fill="#34d399"/>
+      <text x="18" y="3">TS</text>
+      <circle cx="62" cy="-1" r="5" fill="#fbbf24"/>
+      <text x="74" y="3">TY</text>
+      <circle cx="118" cy="-1" r="5" fill="#fb923c"/>
+      <text x="130" y="3">STY</text>
+      <circle cx="180" cy="-1" r="5" fill="#ef4444"/>
+      <text x="192" y="3">Super TY</text>
+      <path d="M268 3l26 0" stroke="#4f6ef7" stroke-width="2.4" stroke-dasharray="5 4"/>
+      <text x="300" y="3">forecast</text>
+      <ellipse cx="392" cy="-1" rx="14" ry="9" fill="#4f6ef7" fill-opacity="0.08" stroke="#4f6ef7" stroke-opacity="0.3"/>
+      <text x="412" y="3">wind radii</text>
+    </g>
+
+    <text x="24" y="340" fill="#a7b2c4" font-size="11" font-family="'Inter','Segoe UI',sans-serif">illustration only — the real chart is drawn from live CMA track data</text>
+  </g>
+</svg>

@@ -283,6 +283,13 @@ const PANEL_BODY_CSS = `
   display:inline-flex;align-items:center;gap:6px;
   font-size:12px;line-height:18px;font-weight:600;color:var(--dsw-alias-label-primary,#1f2328);
 }
+.dshw-switch-control{display:inline-flex;align-items:center;gap:8px;flex:none;}
+.dshw-switch-state{
+  font-size:11px;line-height:16px;font-weight:600;
+  color:var(--dsw-alias-label-secondary,#6b7280);white-space:nowrap;
+}
+/* Contrast-safe on/off: the track uses the theme's strongest label colour, not
+   the brand colour, so a pale brand cannot make both states look alike. */
 .dshw-switch{
   appearance:none;position:relative;flex:none;width:38px;height:22px;padding:0;
   border-radius:999px;border:1px solid var(--dsw-alias-border-l2,#d1d5db);
@@ -295,8 +302,16 @@ const PANEL_BODY_CSS = `
   background:var(--dsw-alias-label-tertiary,#8b93a1);
   transition:transform .15s ease,background-color .15s ease;
 }
-.dshw-switch-on{background:var(--dsw-alias-brand-primary,#4f6ef7);border-color:transparent;}
-.dshw-switch-on .dshw-switch-knob{transform:translateX(16px);background:#fff;}
+.dshw-switch-on{
+  background:var(--dsw-alias-label-primary,#1f2328);
+  border-color:var(--dsw-alias-label-primary,#1f2328);
+}
+.dshw-switch-on .dshw-switch-knob{
+  transform:translateX(16px);
+  background:var(--dsw-alias-bg-base,#fff);
+}
+.dshw-switch-on + .dshw-switch-state,
+.dshw-switch-control[data-on="true"] .dshw-switch-state{color:var(--dsw-alias-label-primary,#1f2328);}
 @media (prefers-reduced-motion:reduce){
   .dshw-switch,.dshw-switch-knob{transition:none;}
 }
@@ -349,7 +364,9 @@ const PANEL_BODY_CSS = `
   color:var(--dsw-alias-label-tertiary,#8b93a1);
 }
 .dshw-footer a{color:inherit;text-decoration:underline;text-underline-offset:2px;}
-.dshw-footer a:hover{color:var(--dsw-alias-brand-primary,#4f6ef7);}
+.dshw-footer a:hover{color:var(--dsw-alias-label-primary,#1f2328);}
+.dshw-footer-feedback{margin-left:auto;}
+.dshw-footer-feedback a{font-weight:600;text-decoration:none;}
 @media (max-width:720px){
   .dshw-inner{padding-left:14px;padding-right:14px;}
   .dshw-forecast{grid-template-columns:minmax(0,1fr);}

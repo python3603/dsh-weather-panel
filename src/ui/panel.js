@@ -287,14 +287,21 @@ function LocationPicker(props) {
         h('span', { className: 'dshw-switch-label' }, h(GpsGlyph, { size: 14 }), t('location.precise')),
         h('span', { className: 'dshw-note' }, t('location.preciseHint'))
       ),
-      h('button', {
-        type: 'button',
-        role: 'switch',
-        'aria-checked': settings.preciseLocation ? 'true' : 'false',
-        'aria-label': t('location.precise'),
-        className: `dshw-switch ${settings.preciseLocation ? 'dshw-switch-on' : ''}`,
-        onClick: () => onTogglePrecise(!settings.preciseLocation)
-      }, h('span', { className: 'dshw-switch-knob' }))
+      h('div', {
+        className: 'dshw-switch-control',
+        'data-on': settings.preciseLocation ? 'true' : 'false'
+      },
+        h('span', { className: 'dshw-switch-state' },
+          settings.preciseLocation ? t('location.preciseOn') : t('location.preciseOff')),
+        h('button', {
+          type: 'button',
+          role: 'switch',
+          'aria-checked': settings.preciseLocation ? 'true' : 'false',
+          'aria-label': t('location.precise'),
+          className: `dshw-switch ${settings.preciseLocation ? 'dshw-switch-on' : ''}`,
+          onClick: () => onTogglePrecise(!settings.preciseLocation)
+        }, h('span', { className: 'dshw-switch-knob' }))
+      )
     ),
     h('div', { className: 'dshw-picker-actions' },
       h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto')),
@@ -362,7 +369,15 @@ function PanelFooter(props) {
       ' · ',
       h('a', { href: 'https://www.bigdatacloud.com/', target: '_blank', rel: 'noreferrer noopener' }, 'BigDataCloud')
     ),
-    h('span', null, t('footer.note'))
+    h('span', null, t('footer.note')),
+    h('span', { className: 'dshw-footer-feedback' },
+      h('a', {
+        href: PROJECT_NEW_ISSUE_URL,
+        target: '_blank',
+        rel: 'noreferrer noopener',
+        title: PROJECT_ISSUES_URL
+      }, t('footer.feedback'))
+    )
   );
 }
 

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 340" width="1000" height="340" role="img" aria-label="Data flow: location, weather, CMA alerts and typhoon tracks feed one weather panel">
+  <title>Data flow</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#94a3b8"/>
+    </marker>
+    <linearGradient id="panelFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef4ff"/>
+      <stop offset="1" stop-color="#e6fbff"/>
+    </linearGradient>
+  </defs>
+
+  <g font-family="'Inter','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+    <!-- column 1: location -->
+    <g>
+      <text x="32" y="34" fill="#7c8aa3" font-size="13" font-weight="700" letter-spacing="1">LOCATION</text>
+      <rect x="32" y="48" width="250" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="52" y="74" fill="#1f2a44" font-size="15" font-weight="600">Public IP · 3 sources raced</text>
+      <text x="52" y="95" fill="#7c8aa3" font-size="12">ipwho.is · ipinfo.io · api.ip.sb</text>
+
+      <rect x="32" y="122" width="250" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="52" y="148" fill="#1f2a44" font-size="15" font-weight="600">Reverse geocode</text>
+      <text x="52" y="169" fill="#7c8aa3" font-size="12">coordinates → place name</text>
+
+      <rect x="32" y="196" width="250" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="52" y="222" fill="#1f2a44" font-size="15" font-weight="600">Device location</text>
+      <text x="52" y="243" fill="#7c8aa3" font-size="12">optional · persisted switch</text>
+    </g>
+
+    <!-- column 2: data -->
+    <g>
+      <text x="372" y="34" fill="#7c8aa3" font-size="13" font-weight="700" letter-spacing="1">DATA</text>
+      <rect x="372" y="48" width="256" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="392" y="74" fill="#1f2a44" font-size="15" font-weight="600">Open-Meteo</text>
+      <text x="392" y="95" fill="#7c8aa3" font-size="12">current · hourly · 5-day daily</text>
+
+      <rect x="372" y="122" width="256" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="392" y="148" fill="#1f2a44" font-size="15" font-weight="600">CMA alerts (NMC)</text>
+      <text x="392" y="169" fill="#7c8aa3" font-size="12">national feed → city / province</text>
+
+      <rect x="372" y="196" width="256" height="62" rx="12" fill="#ffffff" stroke="#dbe3ef"/>
+      <text x="392" y="222" fill="#1f2a44" font-size="15" font-weight="600">CMA typhoon + land mask</text>
+      <text x="392" y="243" fill="#7c8aa3" font-size="12">track · forecast · Natural Earth</text>
+    </g>
+
+    <!-- column 3: panel -->
+    <g>
+      <text x="716" y="34" fill="#7c8aa3" font-size="13" font-weight="700" letter-spacing="1">SURFACE</text>
+      <rect x="716" y="48" width="252" height="210" rx="14" fill="url(#panelFill)" stroke="#c7d6ee"/>
+      <text x="740" y="80" fill="#1f2a44" font-size="16" font-weight="700">Weather panel</text>
+      <text x="740" y="108" fill="#4b5b74" font-size="13">· current conditions</text>
+      <text x="740" y="132" fill="#4b5b74" font-size="13">· 5-day + 24h forecast</text>
+      <text x="740" y="156" fill="#4b5b74" font-size="13">· hourly precipitation</text>
+      <text x="740" y="180" fill="#4b5b74" font-size="13">· alerts + startup notice</text>
+      <text x="740" y="204" fill="#4b5b74" font-size="13">· typhoon track</text>
+      <text x="740" y="234" fill="#7c8aa3" font-size="12">sidebar icon · one page</text>
+    </g>
+
+    <!-- arrows -->
+    <g stroke="#94a3b8" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
+      <path d="M282 79C330 79 330 90 366 90"/>
+      <path d="M282 153C330 153 330 150 366 150"/>
+      <path d="M282 227C330 227 330 216 366 216"/>
+      <path d="M628 90C668 90 672 120 712 120"/>
+      <path d="M628 150C668 150 672 148 712 148"/>
+      <path d="M628 216C668 216 672 190 712 190"/>
+    </g>
+  </g>
+
+  <text x="32" y="316" fill="#94a3b8" font-size="12" font-family="'Inter','Segoe UI',sans-serif">Everything is fetched in the browser; no API key, no host network permission, caches live in localStorage.</text>
+</svg>

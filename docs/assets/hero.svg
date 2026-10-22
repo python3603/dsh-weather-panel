@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="dsh-weather-panel — weather, alerts and typhoon tracks inside DeepSeek Harness">
+  <title>dsh-weather-panel</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef6ff"/>
+      <stop offset="0.55" stop-color="#f7fbff"/>
+      <stop offset="1" stop-color="#eaf1ff"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f6ef7"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <clipPath id="frame"><rect x="0" y="0" width="1200" height="360" rx="24"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="1200" height="360" fill="url(#sky)"/>
+    <circle cx="118" cy="330" r="180" fill="#dbeafe" opacity="0.55"/>
+    <circle cx="1130" cy="40" r="150" fill="#e0f2fe" opacity="0.7"/>
+
+    <!-- sun -->
+    <g stroke="#ffcf5c" stroke-width="6" stroke-linecap="round">
+      <path d="M980 48v-18"/>
+      <path d="M980 176v18"/>
+      <path d="M948 96h-18"/>
+      <path d="M1030 96h18"/>
+      <path d="M956 72l-13-13"/>
+      <path d="M1004 120l13 13"/>
+      <path d="M1004 72l13-13"/>
+      <path d="M956 120l-13 13"/>
+    </g>
+    <circle cx="980" cy="96" r="38" fill="#ffd166"/>
+
+    <!-- cloud + rain -->
+    <g>
+      <rect x="742" y="168" width="190" height="58" rx="29" fill="#ffffff" opacity="0.92"/>
+      <circle cx="792" cy="176" r="34" fill="#ffffff" opacity="0.95"/>
+      <circle cx="852" cy="160" r="44" fill="#ffffff"/>
+      <circle cx="900" cy="178" r="30" fill="#ffffff" opacity="0.95"/>
+      <g stroke="#7fb3ff" stroke-width="7" stroke-linecap="round">
+        <path d="M800 244l-6 22"/>
+        <path d="M848 244l-6 22"/>
+        <path d="M896 244l-6 22"/>
+      </g>
+    </g>
+
+    <!-- typhoon -->
+    <g fill="none" stroke="#5b8def" stroke-linecap="round">
+      <circle cx="1096" cy="268" r="66" stroke-width="9" stroke-dasharray="70 38" opacity="0.85"/>
+      <circle cx="1096" cy="268" r="44" stroke-width="7" stroke-dasharray="44 30" opacity="0.7"/>
+      <circle cx="1096" cy="268" r="24" stroke-width="5" stroke-dasharray="22 18" opacity="0.55"/>
+    </g>
+    <circle cx="1096" cy="268" r="7" fill="#ef4444"/>
+
+    <!-- wind -->
+    <g stroke="#9ec5ff" stroke-width="7" stroke-linecap="round" opacity="0.9">
+      <path d="M700 300h74"/>
+      <path d="M700 322h48"/>
+      <path d="M760 256h58"/>
+    </g>
+
+    <!-- title -->
+    <text x="64" y="140" fill="#1f2a44" font-family="'Inter','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="46" font-weight="700" letter-spacing="-1">dsh-weather-panel</text>
+    <text x="64" y="180" fill="#5b6b85" font-family="'Inter','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="19">Weather, CMA alerts and typhoon tracks, right inside DeepSeek Harness</text>
+    <rect x="64" y="204" width="150" height="4" rx="2" fill="url(#accent)"/>
+    <text x="64" y="246" fill="#7c8aa3" font-family="'Inter','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14">Open-Meteo · Natural Earth · no API key · pure client side</text>
+
+    <!-- mini track -->
+    <g opacity="0.95">
+      <polyline points="70,336 150,318 226,320 300,300 372,292" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="70" cy="336" r="5" fill="#34d399"/>
+      <circle cx="150" cy="318" r="5" fill="#38bdf8"/>
+      <circle cx="226" cy="320" r="5" fill="#fbbf24"/>
+      <circle cx="300" cy="300" r="5" fill="#fb923c"/>
+      <circle cx="372" cy="292" r="6" fill="#ef4444"/>
+      <polyline points="372,292 432,276 492,262" fill="none" stroke="#4f6ef7" stroke-width="3" stroke-dasharray="7 6" stroke-linejoin="round"/>
+      <circle cx="432" cy="276" r="4" fill="#ffffff" stroke="#4f6ef7" stroke-width="2.5"/>
+      <circle cx="492" cy="262" r="4" fill="#ffffff" stroke="#4f6ef7" stroke-width="2.5"/>
+    </g>
+  </g>
+</svg>

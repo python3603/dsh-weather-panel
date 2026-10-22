@@ -115,6 +115,8 @@ export const WEATHER_DICT = {
     'location.precise': '高精度系统定位',
     'location.preciseHint': '开启后每次启动都优先使用浏览器 / 系统定位（会请求一次定位权限）；不可用时自动回退到 IP。',
     'location.gpsFallback': '系统定位不可用，本次已回退到网络定位。',
+    'location.preciseOn': '已开启',
+    'location.preciseOff': '已关闭',
     'location.previewNotice': '预览提醒弹窗',
     'location.previewNoticeHint': '用一条演示用的台风红色预警，检查弹窗样式（不会写入真实预警）。',
     'panel.subtitleGpsAccurate': '系统定位 · 精度约 {accuracy} 米',
@@ -127,6 +129,7 @@ export const WEATHER_DICT = {
     'footer.alerts': '预警数据',
     'footer.license': 'CC BY 4.0',
     'footer.note': '浏览器内直接请求，无需 API Key。',
+    'footer.feedback': '反馈 / 提 issue',
     'aria.icon': '天气图标',
     'aria.loading': '加载中'
   },
@@ -235,6 +238,8 @@ export const WEATHER_DICT = {
     'location.precise': 'High-accuracy device location',
     'location.preciseHint': 'When on, every start prefers the browser / system location (asks for permission once) and falls back to the IP when unavailable.',
     'location.gpsFallback': 'Device location unavailable; fell back to network location this time.',
+    'location.preciseOn': 'On',
+    'location.preciseOff': 'Off',
     'location.previewNotice': 'Preview the notice',
     'location.previewNoticeHint': 'Shows the dialog with a demo red typhoon warning (never touches real alerts).',
     'panel.subtitleGpsAccurate': 'Device location · ~{accuracy} m',
@@ -247,6 +252,7 @@ export const WEATHER_DICT = {
     'footer.alerts': 'Alert data',
     'footer.license': 'CC BY 4.0',
     'footer.note': 'Requested in the browser; no API key.',
+    'footer.feedback': 'Report an issue',
     'aria.icon': 'Weather icon',
     'aria.loading': 'Loading'
   }
