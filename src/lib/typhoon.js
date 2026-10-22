@@ -255,6 +255,21 @@ export function trackBounds(detail, paddingDegrees) {
 }
 
 /**
+ * Whether the selection is already the newest fix.
+ *
+ * `-1` means "nothing was picked by hand", which the view renders as the latest
+ * point; picking the last point explicitly counts as current too. Used to decide
+ * whether the "back to now" control is worth showing.
+ */
+export function isCurrentFix(selectedIndex, pointCount) {
+  const count = toNumber(pointCount);
+  if (count === null || count <= 0) return true;
+  const index = toNumber(selectedIndex);
+  if (index === null) return true;
+  return index < 0 || index >= count - 1;
+}
+
+/**
  * One track point reduced to the values the UI shows.
  *
  * Kept here (not in the view) so the click handler, the floating card and the

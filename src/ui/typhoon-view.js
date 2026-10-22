@@ -129,10 +129,11 @@ function selectedPointDetail(point, t, lang) {
  *
  * A full-size track chart is taller than the viewport, so the detail row below
  * it can sit off-screen; this card is where the click actually becomes visible.
- * It is `pointer-events:none` so it never eats clicks meant for the map.
+ * It is `pointer-events:none` so it never eats clicks meant for the map; the
+ * single action button opts back in.
  */
 function TrackPointCard(props) {
-  const { point, t, lang } = props;
+  const { point, t, lang, isCurrent, onBackToCurrent } = props;
   const info = describeTrackPoint(point, lang);
   if (!info) return null;
   const secondLine = [
@@ -143,7 +144,15 @@ function TrackPointCard(props) {
   return h('div', { className: 'dshw-map-card', 'aria-live': 'polite' },
     h('span', { className: 'dshw-map-card-head' },
       h('span', { className: 'dshw-map-card-badge', style: { background: info.color } }, info.intensity),
-      h('span', { className: 'dshw-map-card-time' }, info.time || '—')
+      h('span', { className: 'dshw-map-card-time' }, info.time || '—'),
+      isCurrent
+        ? h('span', { className: 'dshw-map-card-chip' }, t('typhoon.latest'))
+        : h('button', {
+          type: 'button',
+          className: 'dshw-map-card-action',
+          onClick: onBackToCurrent,
+          title: t('typhoon.backToCurrent')
+        }, h(RefreshGlyph, { size: 11 }), t('typhoon.backToCurrent'))
     ),
     h('span', { className: 'dshw-map-card-line' }, secondLine || '—'),
     h('span', { className: 'dshw-map-card-line dshw-map-card-pos' }, info.position)
@@ -224,6 +233,7 @@ function TyphoonView(props) {
   const peak = peakIntensity(typhoon);
   const active = typhoon.status === 'start';
   const selected = selectedIndex >= 0 && selectedIndex < points.length ? points[selectedIndex] : latest;
+  const atCurrentFix = isCurrentFix(selectedIndex, points.length);
 
   const trackPoints = points.map(point => `${project.x(point.lon).toFixed(1)},${project.y(point.lat).toFixed(1)}`).join(' ');
   const forecastPoints = latest
@@ -363,7 +373,13 @@ function TyphoonView(props) {
         forecastDots,
         latestMarker
       ),
-      h(TrackPointCard, { point: selected, t, lang }),
+      h(TrackPointCard, {
+        point: selected,
+        t,
+        lang,
+        isCurrent: atCurrentFix,
+        onBackToCurrent: () => setSelectedIndex(-1)
+      }),
       h(TyphoonLegend, { lang }),
       typhoon.forecastBase
         ? h('p', { className: 'dshw-note' }, `${t('typhoon.forecast')} · ${typhoon.forecastBase}`)

@@ -5,6 +5,7 @@ import {
   TYPHOON_LEVELS,
   describeTrackPoint,
   describeTyphoonIntensity,
+  isCurrentFix,
   formatTyphoonNumber,
   normalizeTyphoonDetail,
   normalizeTyphoonList,
@@ -155,4 +156,16 @@ test('bounds cover the track plus the forecast, with a minimum span', () => {
   assert.ok(bounds.north > 22.6, 'the forecast point at lat+1.4 is inside');
   assert.ok(bounds.east - bounds.west >= 6, 'a tiny track still gets a readable span');
   assert.equal(trackBounds(null), null);
+});
+
+test('"current" means no manual pick, or the newest point itself', () => {
+  assert.equal(isCurrentFix(-1, 61), true, 'nothing picked means the latest fix');
+  assert.equal(isCurrentFix(60, 61), true, 'picking the last point is still current');
+  assert.equal(isCurrentFix(59, 61), false, 'an older pick is not current');
+  assert.equal(isCurrentFix(0, 61), false);
+  assert.equal(isCurrentFix(-1, 0), true, 'a track without points has nothing to go back to');
+  assert.equal(isCurrentFix(undefined, 5), true);
+  assert.equal(isCurrentFix('4', 5), true, 'numeric strings are tolerated');
+  assert.equal(isCurrentFix('3', 5), false);
+  assert.equal(isCurrentFix(2, 5), false);
 });

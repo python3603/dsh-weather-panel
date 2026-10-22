@@ -40,7 +40,7 @@ test('keys the panel actually renders are all present', () => {
     'typhoon.title', 'typhoon.active', 'typhoon.ended', 'typhoon.none', 'typhoon.latest',
     'typhoon.pressure', 'typhoon.wind', 'typhoon.move', 'typhoon.forecast', 'typhoon.peak',
     'typhoon.meaning', 'typhoon.source', 'typhoon.select', 'typhoon.hint', 'typhoon.windRadius',
-    'typhoon.updated', 'typhoon.noForecast', 'typhoon.official', 'typhoon.land'
+    'typhoon.updated', 'typhoon.noForecast', 'typhoon.official', 'typhoon.land', 'typhoon.backToCurrent'
   ];
   for (const key of required) {
     assert.ok(key in WEATHER_DICT.zh, `zh:${key}`);
