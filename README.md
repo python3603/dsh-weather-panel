@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/hero.svg" alt="dsh-weather-panel — 天气、预警与台风，装进 DeepSeek Harness" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/hero.svg" alt="dsh-weather-panel — 天气、预警与台风，装进 DeepSeek Harness" width="100%" />
 </div>
 
 <h1 align="center">dsh-weather-panel · 天气面板</h1>
@@ -15,9 +15,9 @@
 </p>
 
 <div align="center">
-  <img src="docs/assets/memes/jiaban.webp" alt="加班中的鲸鱼娘" width="118" />
-  <img src="docs/assets/memes/ok.webp" alt="OK" width="118" />
-  <img src="docs/assets/memes/bixin.webp" alt="比心" width="118" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/jiaban.webp" alt="加班中的鲸鱼娘" width="118" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="OK" width="118" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/bixin.webp" alt="比心" width="118" />
 </div>
 
 ---
@@ -35,7 +35,7 @@
 ## 一张图看懂数据流
 
 <div align="center">
-  <img src="docs/assets/data-flow.svg" alt="定位、天气、预警与台风数据汇入同一个天气面板" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/data-flow.svg" alt="定位、天气、预警与台风数据汇入同一个天气面板" width="100%" />
 </div>
 
 **数据链路（严谨版）**：浏览器端并发定位（三个 IP 源竞速，可选系统高精度定位）→ BigDataCloud 逆地理得到城市名 → 以该坐标向 Open-Meteo 请求当前 / 逐时 / 逐日数据；同一轮并行拉取中央气象台全国预警（按市 → 省匹配标题）与台风列表/轨迹；全部结果进入一个共享 store，供面板与启动提醒共用，缓存写入 `localStorage`。
@@ -59,13 +59,13 @@
 ## 实际界面
 
 <div align="center">
-  <img src="docs/screenshots/panel-weather.webp" alt="天气页：当前天气、8 项气象参数、未来 5 天与逐小时降水" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="天气页：当前天气、8 项气象参数、未来 5 天与逐小时降水" width="100%" />
   <br/>
   <sub>天气页 · 当前天气 + 8 项气象参数 + 未来 5 天 + 逐小时降水与 24 小时条带（图中位置标签已打码）</sub>
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/panel-typhoon.webp" alt="台风页：实况轨迹、预报路径、强度配色与风圈" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="台风页：实况轨迹、预报路径、强度配色与风圈" width="100%" />
   <br/>
   <sub>台风页 · 实况轨迹（按强度着色）+ 预报路径 + 风圈 + 参考城市与经纬网</sub>
 </div>
@@ -92,7 +92,7 @@
 卸载：在「插件」页停用/移除 `dsh-weather-panel`；本地仓库不会被改动。
 
 <div align="center">
-  <img src="docs/assets/memes/ok.webp" alt="装好了" width="96" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="装好了" width="96" />
 </div>
 
 ## 数据来源与许可
@@ -207,7 +207,7 @@ npm run check     # 三连
 - `°F` 只影响显示，请求始终使用公制。
 
 <div align="center">
-  <img src="docs/assets/memes/tangping.webp" alt="先躺一会儿" width="96" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/tangping.webp" alt="先躺一会儿" width="96" />
 </div>
 
 ## 反馈
@@ -219,7 +219,7 @@ npm run check     # 三连
 面板底部同样有「反馈 / 提 issue」入口。
 
 <div align="center">
-  <img src="docs/assets/memes/wenhao.webp" alt="有问题吗？" width="96" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/wenhao.webp" alt="有问题吗？" width="96" />
 </div>
 
 ## 许可

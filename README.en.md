@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/hero.svg" alt="dsh-weather-panel — weather, alerts and typhoon tracks inside DeepSeek Harness" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/hero.svg" alt="dsh-weather-panel — weather, alerts and typhoon tracks inside DeepSeek Harness" width="100%" />
 </div>
 
 <h1 align="center">dsh-weather-panel</h1>
@@ -14,9 +14,9 @@
 </p>
 
 <div align="center">
-  <img src="docs/assets/memes/jiaban.webp" alt="Working late" width="112" />
-  <img src="docs/assets/memes/ok.webp" alt="OK" width="112" />
-  <img src="docs/assets/memes/bixin.webp" alt="Heart" width="112" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/jiaban.webp" alt="Working late" width="112" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="OK" width="112" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/bixin.webp" alt="Heart" width="112" />
 </div>
 
 ---
@@ -37,7 +37,7 @@ it stays quiet for the day.
 ## Data flow
 
 <div align="center">
-  <img src="docs/assets/data-flow.svg" alt="Location, weather, alerts and typhoon data feed one panel" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/data-flow.svg" alt="Location, weather, alerts and typhoon data feed one panel" width="100%" />
 </div>
 
 In short: three IP-geolocation sources race in the browser (with an optional persisted device-location
@@ -65,13 +65,13 @@ the startup notice; caches are written to `localStorage`.
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/panel-weather.webp" alt="Weather tab: current conditions, eight parameters, five-day forecast and hourly precipitation" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="Weather tab: current conditions, eight parameters, five-day forecast and hourly precipitation" width="100%" />
   <br/>
   <sub>Weather tab — current conditions, eight parameters, five-day forecast, hourly chart and 24-hour strip (location label redacted in the shot)</sub>
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/panel-typhoon.webp" alt="Typhoon tab: observed track, forecast track, intensity colours and wind radii" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="Typhoon tab: observed track, forecast track, intensity colours and wind radii" width="100%" />
   <br/>
   <sub>Typhoon tab — observed track coloured by intensity, dashed forecast track, wind radii, reference cities and graticule</sub>
 </div>
@@ -101,7 +101,7 @@ Requires DeepSeek Harness **0.2.x** and Node.js ≥ 22 for install/build only.
 3. Reload the Web page: a “Weather” icon appears in the left rail.
 
 <div align="center">
-  <img src="docs/assets/memes/ok.webp" alt="Installed" width="92" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="Installed" width="92" />
 </div>
 
 ## Data sources and licenses
@@ -206,7 +206,7 @@ Bugs, ideas, or unreadable text — please open an issue:
 The panel footer also links there.
 
 <div align="center">
-  <img src="docs/assets/memes/wenhao.webp" alt="Questions?" width="92" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/wenhao.webp" alt="Questions?" width="92" />
 </div>
 
 ## License
