@@ -11,6 +11,16 @@
  * subscription helper at the bottom is the only React-aware part.
  */
 
+// Single-line imports are stripped by scripts/build.mjs (the bundle is one
+// shared scope). They exist so this file is a real ESM module and Node tests
+// import the actual implementation instead of a silently-degraded copy.
+import { createSafeStorage, createTtlCache } from './cache.js';
+import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, buildAlarmPageUrl, matchAlerts, normalizeAlarmPage } from './alerts.js';
+import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
+import { lookupNetworkLocation, reverseGeocode } from './geo.js';
+import { buildForecastUrl, normalizeForecast } from './weather.js';
+import { formatCoordinates, isNumber } from './format.js';
+
 export const PANEL_ID = 'dsh-weather-panel';
 const SETTINGS_STORAGE_KEY = `${PANEL_ID}:settings`;
 const LOCATION_CACHE_KEY = 'resolved';
@@ -22,7 +32,7 @@ const TYPHOON_TTL_MS = 60 * 60 * 1000;
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 12000;
-const DEFAULT_SETTINGS = { units: 'metric', override: null };
+const DEFAULT_SETTINGS = { units: 'metric', preciseLocation: false, override: null };
 
 let sharedStorage = null;
 let sharedLocationCache = null;
@@ -91,6 +101,8 @@ export function readPanelSettings() {
     const parsed = JSON.parse(raw);
     return {
       units: parsed && parsed.units === 'imperial' ? 'imperial' : 'metric',
+      // Persisted across starts: the switch is a user decision, not a one-shot.
+      preciseLocation: Boolean(parsed && parsed.preciseLocation === true),
       override: parsed ? normalizeOverride(parsed.override) : null
     };
   } catch (error) {
@@ -210,15 +222,49 @@ export function describeError(error, translate) {
   return translate('error.weather');
 }
 
+/**
+ * Pick a location for this refresh.
+ *
+ * Order: an explicit manual city always wins; then the persisted
+ * "high-accuracy device location" switch; then the cached/derived network
+ * location. A failing geolocation never breaks the panel — it reports a warning
+ * and falls through to the network path.
+ *
+ * @returns {Promise<{location: object, warning: string}>}
+ */
 async function resolveLocation(settings, signal, lang) {
-  if (settings.override) return { ...settings.override };
+  if (settings.override) return { location: { ...settings.override }, warning: '' };
+
+  if (settings.preciseLocation) {
+    try {
+      const position = await requestDevicePosition();
+      const described = await describeLocation(
+        { lat: position.lat, lon: position.lon, source: 'gps' },
+        signal,
+        lang
+      );
+      return {
+        location: {
+          ...described,
+          source: 'gps',
+          accuracy: isNumber(position.accuracy) ? Math.round(position.accuracy) : null
+        },
+        warning: ''
+      };
+    } catch (error) {
+      // Permission denied, no hardware, or a timeout: keep going with the IP.
+    }
+  }
+
   const cached = getLocationCache().get(LOCATION_CACHE_KEY);
-  if (cached && isNumber(cached.lat) && isNumber(cached.lon)) return cached;
+  if (cached && isNumber(cached.lat) && isNumber(cached.lon)) {
+    return { location: cached, warning: settings.preciseLocation ? 'gps-fallback' : '' };
+  }
   const found = await lookupNetworkLocation(fetchJson, { signal });
   if (!found) throw taggedError('locate');
   const described = await describeLocation(found, signal, lang);
   getLocationCache().set(LOCATION_CACHE_KEY, described, LOCATION_TTL_MS);
-  return described;
+  return { location: described, warning: settings.preciseLocation ? 'gps-fallback' : '' };
 }
 
 async function fetchAlarmPage(pageNo, signal) {
@@ -303,6 +349,7 @@ export function createWeatherStore() {
     alerts: [],
     alertsScanned: 0,
     alertsCheckedAt: null,
+    locationWarning: '',
     typhoonList: [],
     typhoon: null,
     typhoonId: null,
@@ -344,9 +391,10 @@ export function createWeatherStore() {
 
     let location = null;
     try {
-      location = await resolveLocation(settings, controller.signal, lang);
+      const resolved = await resolveLocation(settings, controller.signal, lang);
+      location = resolved.location;
       if (!alive(run)) return;
-      emit({ location, phase: state.forecast ? 'ready' : 'loading' });
+      emit({ location, locationWarning: resolved.warning || '', phase: state.forecast ? 'ready' : 'loading' });
     } catch (error) {
       if (!alive(run)) return;
       emit({ busy: false, phase: state.forecast ? 'ready' : 'error', error: describeError(error, translate) });
@@ -467,26 +515,26 @@ export function createWeatherStore() {
       persist({ override });
       refresh({ force: true });
     },
+    /** Back to plain network location (clears a manual city, switch off). */
     clearOverride() {
       getLocationCache().delete(LOCATION_CACHE_KEY);
-      persist({ override: null });
+      persist({ override: null, preciseLocation: false });
       refresh({ force: true });
     },
-    async useDeviceLocation() {
-      try {
-        const position = await requestDevicePosition();
-        const described = await describeLocation(
-          { lat: position.lat, lon: position.lon, source: 'gps' },
-          undefined,
-          lang
-        ).catch(() => ({ lat: position.lat, lon: position.lon, label: formatCoordinates(position.lat, position.lon), city: '', region: '' }));
-        const override = normalizeOverride({ ...described, source: 'gps' });
-        persist({ override });
-        refresh({ force: true });
-      } catch (error) {
-        emit({ error: translate('error.gps') });
-      }
+    /**
+     * Persist the "high-accuracy device location" switch.
+     *
+     * Turning it on clears a manual city so the setting is actually visible, and
+     * a refresh immediately triggers the permission prompt — that prompt *is*
+     * the user's confirmation. Turning it off returns to the network location.
+     */
+    setPreciseLocation(enabled) {
+      const next = enabled === true;
+      persist({ preciseLocation: next, override: next ? null : settings.override });
+      if (!next) getLocationCache().delete(LOCATION_CACHE_KEY);
+      refresh({ force: true });
     },
+    /** Manual city: wins over the switch until the user clears it. */
     selectCity(city) {
       const override = normalizeOverride({
         lat: city.lat,

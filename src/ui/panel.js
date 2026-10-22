@@ -234,7 +234,7 @@ function ProxyHint(props) {
 }
 
 function LocationPicker(props) {
-  const { t, lang, onClose, onAuto, onDevice, onSelect } = props;
+  const { t, lang, settings, onClose, onAuto, onTogglePrecise, onSelect } = props;
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState([]);
   const [status, setStatus] = React.useState('idle');
@@ -282,9 +282,22 @@ function LocationPicker(props) {
       }, h(CloseGlyph, { size: 14 }))
     ),
     h('p', { className: 'dshw-note' }, t('location.description')),
+    h('div', { className: 'dshw-switch-row' },
+      h('div', { className: 'dshw-switch-text' },
+        h('span', { className: 'dshw-switch-label' }, h(GpsGlyph, { size: 14 }), t('location.precise')),
+        h('span', { className: 'dshw-note' }, t('location.preciseHint'))
+      ),
+      h('button', {
+        type: 'button',
+        role: 'switch',
+        'aria-checked': settings.preciseLocation ? 'true' : 'false',
+        'aria-label': t('location.precise'),
+        className: `dshw-switch ${settings.preciseLocation ? 'dshw-switch-on' : ''}`,
+        onClick: () => onTogglePrecise(!settings.preciseLocation)
+      }, h('span', { className: 'dshw-switch-knob' }))
+    ),
     h('div', { className: 'dshw-picker-actions' },
-      h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto')),
-      h('button', { type: 'button', className: 'dshw-btn', onClick: onDevice }, h(GpsGlyph), t('location.gps'))
+      h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto'))
     ),
     h('label', { className: 'dshw-search' },
       h('span', { className: 'dshw-search-icon' }, h(SearchGlyph)),
@@ -355,8 +368,7 @@ function WeatherTab(props) {
     h(NowSection, { t, lang, units, current, today }),
     h('section', { className: 'dshw-section' },
       h('div', { className: 'dshw-section-head' },
-        h('h2', { className: 'dshw-section-title' }, t('forecast.title')),
-        forecast.timezone ? h('span', { className: 'dshw-note' }, forecast.timezone) : null
+        h('h2', { className: 'dshw-section-title' }, t('forecast.title'))
       ),
       h('div', { className: 'dshw-forecast' },
         upcoming.map((day, index) => h(ForecastCard, {
@@ -424,7 +436,9 @@ function WeatherPanel(props) {
   if (state.location && state.location.source === 'network' && state.location.ip) {
     subtitleParts.push(translate('panel.subtitleNetwork', { ip: state.location.ip }));
   } else if (state.location && state.location.source === 'gps') {
-    subtitleParts.push(translate('panel.subtitleGps'));
+    subtitleParts.push(isNumber(state.location.accuracy)
+      ? translate('panel.subtitleGpsAccurate', { accuracy: state.location.accuracy })
+      : translate('panel.subtitleGps'));
   } else if (state.location && state.location.source === 'manual') {
     subtitleParts.push(translate('panel.subtitleManual'));
   }
@@ -485,13 +499,14 @@ function WeatherPanel(props) {
         ? h(LocationPicker, {
           t: translate,
           lang,
+          settings,
           onClose: () => setPickerOpen(false),
           onAuto: () => {
             store.clearOverride();
             setPickerOpen(false);
           },
-          onDevice: () => {
-            store.useDeviceLocation();
+          onTogglePrecise: enabled => {
+            store.setPreciseLocation(enabled);
             setPickerOpen(false);
           },
           onSelect: city => {
@@ -499,6 +514,13 @@ function WeatherPanel(props) {
             setPickerOpen(false);
           }
         })
+        : null,
+
+      state.locationWarning === 'gps-fallback'
+        ? h('div', { className: 'dshw-hint', role: 'note' },
+          h('span', { className: 'dshw-hint-text' }, translate('location.gpsFallback')),
+          h('button', { type: 'button', className: 'dshw-btn', onClick: openPicker }, translate('action.changeLocation'))
+        )
         : null,
 
       h(ProxyHint, { location: state.location, t: translate, onPick: openPicker }),

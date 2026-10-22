@@ -24,7 +24,7 @@
 | Typhoon | Active (or latest) system: observed track, forecast track, intensity colours, wind radii, graticule with reference cities, click a point for pressure/wind/motion |
 | Startup notice | When DSH opens and today has rain or an active alert, a modal asks for acknowledgement; acknowledged means quiet for the day, but **a new alert re-opens it** |
 | Proxy hint | When the exit IP is outside mainland China, a banner suggests switching cities manually |
-| Location | Automatic (public IP), device location, or manual city search — the source and IP are always shown |
+| Location | Automatic (public IP), **a persisted high-accuracy device-location switch**, or manual city search — source, IP and accuracy are always shown |
 | Controls | Refresh, °C/°F and km/h / mph toggle (persisted), close panel; data refreshes every **10 minutes** (paused while the page is hidden and caught up on return) |
 
 ## Install
@@ -116,7 +116,7 @@ checkout and the Harness reads that entry file directly.
   purpose (no extra quota or dependency); a basemap can be added later.
 - The notice is evaluated at page load/refresh and again every 10 minutes, which also covers a
   desktop window that stays open.
-- Device location depends on browser permission and can be denied.
+- The device-location switch depends on browser permission: turning it on asks once, and a denial or missing geolocation falls back to the network location with a visible note (the switch itself stays on for the next start).
 - `°F` only affects display; requests are always metric.
 
 ## Before publishing to GitHub
