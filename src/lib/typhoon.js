@@ -254,6 +254,32 @@ export function trackBounds(detail, paddingDegrees) {
   return { west, east, south, north };
 }
 
+/**
+ * One track point reduced to the values the UI shows.
+ *
+ * Kept here (not in the view) so the click handler, the floating card and the
+ * detail row cannot drift apart, and so the shape is covered by tests.
+ */
+export function describeTrackPoint(point, lang) {
+  if (!point) return null;
+  const level = describeTyphoonIntensity(point.intensity, lang);
+  const lat = toNumber(point.lat);
+  const lon = toNumber(point.lon);
+  return {
+    time: point.timeText || point.timeLabel || '',
+    intensity: level.label,
+    intensityCode: level.code,
+    color: level.color,
+    lat,
+    lon,
+    position: lat !== null && lon !== null ? `${lat.toFixed(1)}°N ${lon.toFixed(1)}°E` : '—',
+    pressure: toNumber(point.pressure),
+    wind: toNumber(point.wind),
+    moveDirection: point.moveDirection || '',
+    moveSpeed: toNumber(point.moveSpeed)
+  };
+}
+
 /** Highest intensity reached so far, for the summary line. */
 export function peakIntensity(detail) {
   if (!detail || !Array.isArray(detail.points)) return describeTyphoonIntensity('', 'zh');

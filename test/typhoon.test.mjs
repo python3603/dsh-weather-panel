@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   TYPHOON_LEVELS,
+  describeTrackPoint,
   describeTyphoonIntensity,
   formatTyphoonNumber,
   normalizeTyphoonDetail,
@@ -117,6 +118,26 @@ test('a newest fix without a forecast falls back to the previous advisory', () =
   assert.equal(detail.latest.intensity, 'TY', 'the latest point is still the latest fix');
   assert.equal(detail.forecast.length, 1, 'the forecast comes from the previous point');
   assert.equal(detail.forecastBase, '2026年10月22日14时00分');
+});
+
+test('a track point is reduced to the values both views show', () => {
+  const detail = normalizeTyphoonDetail(DETAIL_PAYLOAD);
+  const info = describeTrackPoint(detail.points[1], 'zh');
+  assert.equal(info.time, '2026年10月22日14时00分');
+  assert.equal(info.intensity, '强台风');
+  assert.equal(info.position, '21.2°N 124.9°E');
+  assert.equal(info.pressure, 945);
+  assert.equal(info.wind, 48);
+  assert.equal(info.moveDirection, 'NW');
+  assert.equal(info.moveSpeed, 18);
+  assert.match(info.color, /^#/);
+
+  assert.equal(describeTrackPoint(null, 'zh'), null);
+  const bare = describeTrackPoint({ lat: 10, lon: 120, intensity: 'TS' }, 'en');
+  assert.equal(bare.pressure, null, 'missing numbers stay null, never NaN');
+  assert.equal(bare.wind, null);
+  assert.equal(bare.intensity, 'Tropical storm');
+  assert.equal(bare.position, '10.0°N 120.0°E');
 });
 
 test('unusable detail payloads return null instead of a broken object', () => {

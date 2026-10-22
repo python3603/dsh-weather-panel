@@ -95,26 +95,58 @@ function windRadiusRings(latest, project) {
   });
 }
 
-function selectedPointDetail(point, t, lang) {
-  if (!point) return null;
-  const intensity = describeTyphoonIntensity(point.intensity, lang);
-  const items = [
-    { key: 'time', label: lang === 'en' ? 'Time' : '时间', value: point.timeText || point.timeLabel || '—' },
-    { key: 'intensity', label: lang === 'en' ? 'Intensity' : '强度', value: intensity.label },
-    { key: 'position', label: lang === 'en' ? 'Position' : '位置', value: `${point.lat.toFixed(1)}°N ${point.lon.toFixed(1)}°E` },
-    { key: 'pressure', label: t('typhoon.pressure'), value: isNumber(point.pressure) ? `${Math.round(point.pressure)} hPa` : '—' },
-    { key: 'wind', label: t('typhoon.wind'), value: isNumber(point.wind) ? `${Math.round(point.wind)} m/s` : '—' },
+/** Label/value pairs for one track point, shared by the card and the detail row. */
+function trackPointRows(point, t, lang) {
+  const info = describeTrackPoint(point, lang);
+  if (!info) return [];
+  return [
+    { key: 'time', label: lang === 'en' ? 'Time' : '时间', value: info.time || '—' },
+    { key: 'intensity', label: lang === 'en' ? 'Intensity' : '强度', value: info.intensity, color: info.color },
+    { key: 'position', label: lang === 'en' ? 'Position' : '位置', value: info.position },
+    { key: 'pressure', label: t('typhoon.pressure'), value: isNumber(info.pressure) ? `${info.pressure} hPa` : '—' },
+    { key: 'wind', label: t('typhoon.wind'), value: isNumber(info.wind) ? `${info.wind} m/s` : '—' },
     {
       key: 'move',
       label: t('typhoon.move'),
-      value: [point.moveDirection, isNumber(point.moveSpeed) ? `${Math.round(point.moveSpeed)} km/h` : ''].filter(Boolean).join(' ') || '—'
+      value: [info.moveDirection, isNumber(info.moveSpeed) ? `${info.moveSpeed} km/h` : ''].filter(Boolean).join(' ') || '—'
     }
   ];
+}
+
+function selectedPointDetail(point, t, lang) {
+  const rows = trackPointRows(point, t, lang);
+  if (rows.length === 0) return null;
   return h('div', { className: 'dshw-typhoon-detail' },
-    items.map(item => h('div', { className: 'dshw-param', key: item.key },
-      h('span', { className: 'dshw-param-k' }, item.label),
-      h('span', { className: 'dshw-param-v' }, item.value)
+    rows.map(row => h('div', { className: 'dshw-param', key: row.key },
+      h('span', { className: 'dshw-param-k' }, row.label),
+      h('span', { className: 'dshw-param-v', style: row.color ? { color: row.color } : null }, row.value)
     ))
+  );
+}
+
+/**
+ * The selected fix, floating over the map.
+ *
+ * A full-size track chart is taller than the viewport, so the detail row below
+ * it can sit off-screen; this card is where the click actually becomes visible.
+ * It is `pointer-events:none` so it never eats clicks meant for the map.
+ */
+function TrackPointCard(props) {
+  const { point, t, lang } = props;
+  const info = describeTrackPoint(point, lang);
+  if (!info) return null;
+  const secondLine = [
+    isNumber(info.pressure) ? `${info.pressure} hPa` : '',
+    isNumber(info.wind) ? `${info.wind} m/s` : '',
+    [info.moveDirection, isNumber(info.moveSpeed) ? `${info.moveSpeed} km/h` : ''].filter(Boolean).join(' ')
+  ].filter(Boolean).join(' · ');
+  return h('div', { className: 'dshw-map-card', 'aria-live': 'polite' },
+    h('span', { className: 'dshw-map-card-head' },
+      h('span', { className: 'dshw-map-card-badge', style: { background: info.color } }, info.intensity),
+      h('span', { className: 'dshw-map-card-time' }, info.time || '—')
+    ),
+    h('span', { className: 'dshw-map-card-line' }, secondLine || '—'),
+    h('span', { className: 'dshw-map-card-line dshw-map-card-pos' }, info.position)
   );
 }
 
@@ -202,20 +234,30 @@ function TyphoonView(props) {
 
   const trackDots = points.map((point, index) => {
     const level = describeTyphoonIntensity(point.intensity, lang);
+    const info = describeTrackPoint(point, lang);
     const isSelected = index === selectedIndex || (selectedIndex < 0 && index === points.length - 1);
+    const cx = project.x(point.lon);
+    const cy = project.y(point.lat);
     return h('g', {
       key: point.id || `point-${index}`,
       className: 'dshw-track-dot',
       onClick: () => setSelectedIndex(index),
       role: 'button',
       tabIndex: 0,
+      'aria-label': `${info.time || ''} ${level.label}`.trim(),
       onKeyDown: event => {
-        if (event.key === 'Enter' || event.key === ' ') setSelectedIndex(index);
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setSelectedIndex(index);
+        }
       }
     },
       h('title', null, `${point.timeText} · ${level.label} · ${isNumber(point.pressure) ? Math.round(point.pressure) + ' hPa' : ''}`),
-      h('circle', { cx: project.x(point.lon), cy: project.y(point.lat), r: isSelected ? 5.4 : 3.4, fill: level.color, className: isSelected ? 'dshw-track-dot-selected' : '' }),
-      h('circle', { cx: project.x(point.lon), cy: project.y(point.lat), r: isSelected ? 8.4 : 0, className: 'dshw-track-halo' })
+      // Invisible hit area: a 4 px dot is impossible to hit, and points close in
+      // time overlap, so the target is deliberately much larger than the dot.
+      h('circle', { className: 'dshw-hit', cx, cy, r: 9 }),
+      h('circle', { className: 'dshw-track-point', cx, cy, r: isSelected ? 6 : 4, fill: level.color }),
+      isSelected ? h('circle', { className: 'dshw-track-selected-ring', cx, cy, r: 10 }) : null
     );
   });
 
@@ -234,6 +276,15 @@ function TyphoonView(props) {
     ? h('g', { className: 'dshw-latest-marker' },
       h('circle', { cx: project.x(latest.lon), cy: project.y(latest.lat), r: 11, className: 'dshw-latest-ring' }),
       h('circle', { cx: project.x(latest.lon), cy: project.y(latest.lat), r: 3.2, fill: latestLevel.color })
+    )
+    : null;
+
+  // Crosshair through the selected fix: the click has to be visible on the map
+  // itself, not only in a card that may be scrolled out of view.
+  const crosshair = selected
+    ? h('g', { className: 'dshw-crosshair' },
+      h('line', { x1: 0, x2: TYPHOON_MAP_WIDTH, y1: project.y(selected.lat), y2: project.y(selected.lat) }),
+      h('line', { x1: project.x(selected.lon), x2: project.x(selected.lon), y1: 0, y2: TYPHOON_MAP_HEIGHT })
     )
     : null;
 
@@ -305,12 +356,14 @@ function TyphoonView(props) {
         graticuleFor(bounds, project),
         referenceCities(bounds, project, lang),
         windRadiusRings(latest, project),
+        crosshair,
         forecastPoints ? h('polyline', { className: 'dshw-forecast-line', points: forecastPoints }) : null,
         trackPoints ? h('polyline', { className: 'dshw-track-line', points: trackPoints }) : null,
         trackDots,
         forecastDots,
         latestMarker
       ),
+      h(TrackPointCard, { point: selected, t, lang }),
       h(TyphoonLegend, { lang }),
       typhoon.forecastBase
         ? h('p', { className: 'dshw-note' }, `${t('typhoon.forecast')} · ${typhoon.forecastBase}`)
