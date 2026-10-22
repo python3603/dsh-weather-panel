@@ -88,7 +88,7 @@
 | --- | --- | --- |
 | 天气/预报 | [Open-Meteo](https://open-meteo.com/) | 免 Key；数据 **CC BY 4.0**，面板底部保留署名 |
 | 网络定位 | [ipwho.is](https://ipwho.is/)、[ipinfo.io](https://ipinfo.io/)、[api.ip.sb](https://ip.sb/) | 三源并发竞速，先可用者胜；单源失败不影响面板 |
-| 逆地理编码 | [BigDataCloud](https://www.bigdatacloud.com/) | 坐标 → 「青岛市 · 黄岛区」 |
+| 逆地理编码 | [BigDataCloud](https://www.bigdatacloud.com/) | 坐标 → 「北京市 · 朝阳区」 |
 | 城市搜索 | Open-Meteo Geocoding | 中文查询自动追加「市」变体并重排 |
 | 气象预警 | **中央气象台** `www.nmc.cn/rest/findAlarm` | 全国生效预警（实测 CORS `*`），按标题中的市/省名过滤 |
 | 台风 | **中央气象台台风网** `typhoon.nmc.cn` | JSONP 接口，取回后自行剥壳解析；轨迹/预报/风圈/强度 |
