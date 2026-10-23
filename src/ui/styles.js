@@ -482,6 +482,11 @@ const PANEL_BODY_CSS = `
 .dshw-legend-max{background:#ef4444;}
 .dshw-legend-min{background:#38bdf8;}
 
+/* ---- pro charts ---- */
+.dshw-pro{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.dshw-pro-source{padding:0 2px;}
+.dshw-tabs{flex-wrap:wrap;}
+
 /* ---- satellite ---- */
 .dshw-sat{display:flex;flex-direction:column;gap:10px;padding:14px 16px;}
 .dshw-sat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}

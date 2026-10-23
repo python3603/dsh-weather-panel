@@ -591,7 +591,8 @@ function WeatherPanel(props) {
         tabButton('weather', translate('tab.weather')),
         tabButton('satellite', translate('tab.satellite')),
         tabButton('radar', translate('tab.radar')),
-        typhoonAvailable ? tabButton('typhoon', translate('tab.typhoon')) : null
+        typhoonAvailable ? tabButton('typhoon', translate('tab.typhoon')) : null,
+        tabButton('pro', translate('tab.pro'))
       ),
 
       !forecast && tab === 'weather'
@@ -606,6 +607,10 @@ function WeatherPanel(props) {
 
       tab === 'satellite'
         ? h(SatelliteView, { t: translate, lang })
+        : null,
+
+      tab === 'pro'
+        ? h(ProChartView, { t: translate, lang })
         : null,
 
       tab === 'radar'

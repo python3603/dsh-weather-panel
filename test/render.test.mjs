@@ -553,3 +553,16 @@ test('the satellite tab exposes all three imagery sources', () => {
     assert.ok(text.includes(label), `renders ${label}`);
   }
 });
+test('the pro tab shows the SST and ECMWF panels', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'pro'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  for (const label of ['西北太平洋海表温度', 'ECMWF 中国区域天气图', '海域', '产品', '起报时次', '预报时效', 'easterlywave.com']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});

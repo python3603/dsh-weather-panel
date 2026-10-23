@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-118%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-121%20passing-brightgreen?style=flat-square"/>
   <img alt="Platform" src="https://img.shields.io/badge/surface-Web%20UI-8b5cf6?style=flat-square"/>
 </p>
 
@@ -58,6 +58,7 @@
 | 雷达 | **官方雷达拼图**：全国 + 华北/东北/华东/华中/华南/西南/西北，与 nmc.cn 相同的产品划分；时次滑杆 + 播放动画，图片直连 `image.nmc.cn` |
 | 历史气温 | 天气页底部：**近 7 天 / 近 30 天**（默认 7 天）日最高、最低与平均气温折线，带温度带与极值标注（不是 K 线） |
 | 卫星云图 | **国家卫星气象中心官方产品（6 个）**：FY-4B 中国区域（伪彩 / 真彩 72h 回看）、FY-4B 全圆盘（自然色 / 长波红外）、FY-2G 中国区可见光、全球红外 15 分钟；按官方 XML 清单逐帧，滑杆、上一帧/下一帧、点击放大 |
+| 专业（Pro） | **西北太平洋海表温度**（8 个海域、按日回看 15 天）+ **ECMWF 中国区域天气图**（4 种产品、00Z/12Z 两个起报时次、0–240h 时效），图片可点击放大 |
 | 交互 | 刷新、°C/°F 与 km/h / mph 切换（持久化）、关闭面板；数据每 10 分钟自动刷新（页面隐藏时暂停，切回补刷） |
 
 ## 实际界面
@@ -115,6 +116,7 @@
 | 卫星云图 | **国家卫星气象中心** `img.nsmc.org.cn` | 产品清单 XML（实测 CORS `*`）逐帧列出官方 JPG；覆盖 FY-4B / FY-2G / 静止卫星全球拼图 |
 
 | 历史气温 | Open-Meteo `past_days` | 逐日最高 / 最低 / 平均；`forecast_days=0` 只回完整日（截至昨天） |
+| 专业图 | **easterlywave.com** 社区站点 | 海表温度按日；ECMWF 图按 `00Z/12Z` 起报 + 24h 步长。该站 JSON 接口需 cookie + CSRF 且无 CORS，**这里只取静态产品图**，并保留官方页面链接 |
 
 **隐私**：定位只把公网 IP 交给上述定位服务；天气只把坐标交给 Open-Meteo；预警与台风请求不携带任何个人信息。缓存只写本机 `localStorage`。
 
@@ -163,6 +165,7 @@
 │   │   ├── radar.js      # 雷达产品与时次规则、官方图片 URL
 │   │   ├── satellite.js  # NSMC / 向日葵九号 / NASA GIBS 的取图规则
 │   │   ├── history.js    # 历史气温取数与归一化
+│   │   ├── procharts.js  # 海温 / ECMWF 产品图规则
 │   │   ├── notice-core.js# 是否该弹窗的纯决策逻辑
 │   │   └── store.js      # 共享状态、缓存、10 分钟刷新、React 绑定
 │   ├── ui/
@@ -174,6 +177,7 @@
 │   │   ├── radar-view.js # 雷达拼图（区域 / 时次 / 播放）
 │   │   ├── satellite-view.js # 卫星云图（三家源）
 │   │   ├── history-chart.js  # 历史气温折线
+│   │   ├── pro-chart-view.js # 专业栏（海温 + ECMWF）
 │   │   ├── media-zoom.js     # 共用的大图查看层
 │   │   ├── notice.js     # 启动/新预警提醒弹窗
 │   │   └── panel.js      # 面板组件与位置选择器
@@ -223,6 +227,7 @@ npm run check     # 三连
 - 雷达图按官方 6 分钟时次生成候选帧：nmc.cn 的帧清单页面没有 CORS 头，浏览器读不到，因此缺帧时靠图片 onerror 回退（最新时次通常滞后 1-2 帧）。全国可回看 24 小时、分区约 2 小时，与官网一致。
 - 卫星云图只接国内官方源（国家卫星气象中心）：清单 XML 与产品图都直连 `img.nsmc.org.cn`（实测 CORS 允许读取清单），影像按官方节奏更新（FY-4B 每 15 分钟、FY-2 每 30 分钟）。
 - 历史气温取的是 Open-Meteo 的逐日统计，`forecast_days=0` 不返回今天，所以曲线截止到**昨天**（完整日）。
+- 专业栏的图来自社区站点 easterlywave.com：API 有 CORS + CSRF 限制，只能按命名规则直连静态图，因此**新起报时次的出图会滞后**（ECMWF 每天 00Z/12Z 两次，海温按日）；若图片缺失会自动回退到上一时次，仍缺则提示。
 - `°F` 只影响显示，请求始终使用公制。
 
 <div align="center">
