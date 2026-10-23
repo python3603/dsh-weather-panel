@@ -400,7 +400,7 @@ function PanelFooter(props) {
 
 /** Panel body for the weather tab. */
 function WeatherTab(props) {
-  const { t, lang, units, forecast, current, today, upcoming, hours } = props;
+  const { t, lang, units, forecast, current, today, upcoming, hours, location } = props;
   if (!forecast) return null;
   return h(React.Fragment, null,
     h(NowSection, { t, lang, units, current, today }),
@@ -427,7 +427,8 @@ function WeatherTab(props) {
         h(PrecipitationChart, { hours, units, t, lang }),
         h(HourlyStrip, { t, units, hours, currentTime: current && current.time })
       )
-      : null
+      : null,
+    h(HistoryCard, { t, lang, units, location, timezone: forecast ? forecast.timezone : undefined })
   );
 }
 
@@ -588,6 +589,7 @@ function WeatherPanel(props) {
 
       h('div', { className: 'dshw-tabs', role: 'tablist' },
         tabButton('weather', translate('tab.weather')),
+        tabButton('satellite', translate('tab.satellite')),
         tabButton('radar', translate('tab.radar')),
         typhoonAvailable ? tabButton('typhoon', translate('tab.typhoon')) : null
       ),
@@ -599,7 +601,11 @@ function WeatherPanel(props) {
         : null,
 
       tab === 'weather' && forecast
-        ? h(WeatherTab, { t: translate, lang, units, forecast, current, today, upcoming, hours })
+        ? h(WeatherTab, { t: translate, lang, units, forecast, current, today, upcoming, hours, location: state.location })
+        : null,
+
+      tab === 'satellite'
+        ? h(SatelliteView, { t: translate, lang })
         : null,
 
       tab === 'radar'

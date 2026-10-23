@@ -46,15 +46,6 @@ function RadarView(props) {
     setZoomed(false);
   }, [productId]);
 
-  React.useEffect(() => {
-    if (!zoomed) return undefined;
-    const onKeyDown = event => {
-      if (event.key === 'Escape') setZoomed(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [zoomed]);
-
   const step = delta => {
     const next = Math.min(stamps.length - 1, Math.max(0, safeIndex + delta));
     setIndex(next);
@@ -136,25 +127,26 @@ function RadarView(props) {
         }
       }, t('radar.latest'))
     ),
-    h('div', { className: `dshw-radar-frame${isLoaded ? ' dshw-radar-frame-ready' : ''}` },
-      isLoaded ? null : h('div', { className: 'dshw-radar-skeleton', 'aria-hidden': 'true' }),
+    h('div', { className: `dshw-media-frame${isLoaded ? ' dshw-media-frame-ready' : ''}` },
+      isLoaded ? null : h('div', { className: 'dshw-media-skeleton', 'aria-hidden': 'true' }),
       isBroken && !isLoaded
-        ? h('p', { className: 'dshw-note dshw-radar-broken' }, t('radar.unavailable'))
+        ? h('p', { className: 'dshw-note dshw-media-broken' }, t('radar.unavailable'))
         : null,
       url
         ? h('button', {
           type: 'button',
-          className: 'dshw-radar-link',
+          className: 'dshw-media-link',
           onClick: () => setZoomed(true),
           title: t('radar.zoomHint'),
           'aria-label': t('radar.zoomHint')
         }, h('img', {
           key: url,
-          className: 'dshw-radar-img',
+          className: 'dshw-media-img',
           src: url,
           alt: when ? `${radarProductName(product, lang)} · ${when.day} ${when.clock}` : radarProductName(product, lang),
           referrerPolicy: 'no-referrer',
           loading: 'eager',
+          decoding: 'async',
           onLoad: handleLoad,
           onError: handleError
         }))
@@ -169,35 +161,13 @@ function RadarView(props) {
         rel: 'noreferrer noopener'
       }, t('radar.official'))
     ),
-    zoomed && url
-      ? h('div', {
-        className: 'dshw-radar-zoom',
-        role: 'dialog',
-        'aria-modal': 'true',
-        'aria-label': t('radar.zoomTitle'),
-        onClick: () => setZoomed(false)
-      },
-        h('img', {
-          className: 'dshw-radar-zoom-img',
-          src: url,
-          alt: when ? `${radarProductName(product, lang)} · ${when.day} ${when.clock}` : radarProductName(product, lang),
-          referrerPolicy: 'no-referrer',
-          onClick: event => event.stopPropagation()
-        }),
-        h('div', { className: 'dshw-radar-zoom-bar', onClick: event => event.stopPropagation() },
-          h('span', { className: 'dshw-radar-zoom-meta' },
-            [radarProductName(product, lang), when ? `${when.day} ${when.clock}` : ''].filter(Boolean).join(' · ')
-          ),
-          h('a', {
-            className: 'dshw-btn',
-            href: url,
-            target: '_blank',
-            rel: 'noreferrer noopener'
-          }, t('radar.openImage')),
-          h('button', { type: 'button', className: 'dshw-btn', onClick: () => setZoomed(false) },
-            t('radar.close'))
-        )
-      )
-      : null
+    h(MediaZoom, {
+      open: zoomed,
+      url,
+      alt: when ? `${radarProductName(product, lang)} · ${when.day} ${when.clock}` : radarProductName(product, lang),
+      meta: [radarProductName(product, lang), when ? `${when.day} ${when.clock}` : ''].filter(Boolean).join(' · '),
+      t,
+      onClose: () => setZoomed(false)
+    })
   );
 }

@@ -34,18 +34,18 @@ test('chart axis labels are positioned HTML, not SVG text', () => {
 });
 
 test('the radar product image is contained in a bounded viewport', () => {
-  const frame = /\.dshw-radar-frame\{([^}]*)\}/.exec(bundle);
+  const frame = /\.dshw-media-frame\{([^}]*)\}/.exec(bundle);
   assert.ok(frame, 'the radar frame rule ships');
   assert.match(frame[1], /height:clamp\(/, 'the frame height is bounded so the whole product fits');
 
-  const img = /\.dshw-radar-img\{([^}]*)\}/.exec(bundle);
+  const img = /\.dshw-media-img\{([^}]*)\}/.exec(bundle);
   assert.ok(img, 'the radar image rule ships');
   assert.match(img[1], /max-height:100%/, 'the image never exceeds the frame');
   assert.match(img[1], /object-fit:contain/, 'the image keeps its aspect ratio');
   assert.doesNotMatch(img[1], /width:100%;height:auto/, 'it must not stretch to the panel width again');
 });
 test('the radar zoom overlay is a fixed full-screen layer', () => {
-  const zoom = /\.dshw-radar-zoom\{([^}]*)\}/.exec(bundle);
+  const zoom = /\.dshw-zoom\{([^}]*)\}/.exec(bundle);
   assert.ok(zoom, 'the zoom overlay rule ships');
   assert.match(zoom[1], /position:fixed/, 'it covers the window, not just the panel');
   assert.match(zoom[1], /inset:0/);

@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-106%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-118%20passing-brightgreen?style=flat-square"/>
   <img alt="Platform" src="https://img.shields.io/badge/surface-Web%20UI-8b5cf6?style=flat-square"/>
 </p>
 
@@ -56,6 +56,8 @@
 | 位置 | **网络定位（公网 IP）/ 系统定位（浏览器高精度，持久生效）二选一**，随时切回；也可手动搜索城市；副标题标明来源、IP 与精度 |
 | 代理提示 | 出口 IP 不在中国大陆时，顶部提示「可能开了代理/VPN，请手动切换城市」 |
 | 雷达 | **官方雷达拼图**：全国 + 华北/东北/华东/华中/华南/西南/西北，与 nmc.cn 相同的产品划分；时次滑杆 + 播放动画，图片直连 `image.nmc.cn` |
+| 历史气温 | 天气页底部：**近 7 天 / 近 30 天**（默认 7 天）日最高、最低与平均气温折线，带温度带与极值标注（不是 K 线） |
+| 卫星云图 | **国家卫星气象中心官方产品（6 个）**：FY-4B 中国区域（伪彩 / 真彩 72h 回看）、FY-4B 全圆盘（自然色 / 长波红外）、FY-2G 中国区可见光、全球红外 15 分钟；按官方 XML 清单逐帧，滑杆、上一帧/下一帧、点击放大 |
 | 交互 | 刷新、°C/°F 与 km/h / mph 切换（持久化）、关闭面板；数据每 10 分钟自动刷新（页面隐藏时暂停，切回补刷） |
 
 ## 实际界面
@@ -110,6 +112,9 @@
 | 台风 | **中央气象台台风网** `typhoon.nmc.cn` | JSONP 接口，取回后自行剥壳解析；轨迹/预报/风圈/强度 |
 | 底图 | [Natural Earth](https://www.naturalearthdata.com/) 1:50m 陆地 | 公有领域；构建期裁剪西北太平洋并抽稀，打进 bundle，约 36 KiB |
 | 雷达 | **中央气象台雷达拼图** `image.nmc.cn` | 官方产品图（PNG），按官方 6 分钟时次规则取帧；图片加载不需要 CORS |
+| 卫星云图 | **国家卫星气象中心** `img.nsmc.org.cn` | 产品清单 XML（实测 CORS `*`）逐帧列出官方 JPG；覆盖 FY-4B / FY-2G / 静止卫星全球拼图 |
+
+| 历史气温 | Open-Meteo `past_days` | 逐日最高 / 最低 / 平均；`forecast_days=0` 只回完整日（截至昨天） |
 
 **隐私**：定位只把公网 IP 交给上述定位服务；天气只把坐标交给 Open-Meteo；预警与台风请求不携带任何个人信息。缓存只写本机 `localStorage`。
 
@@ -156,6 +161,8 @@
 │   │   ├── alerts.js     # 中央气象台预警解析、地名匹配、签名
 │   │   ├── typhoon.js    # 台风 JSONP 解析、轨迹/预报/边界/强度/风圈等级
 │   │   ├── radar.js      # 雷达产品与时次规则、官方图片 URL
+│   │   ├── satellite.js  # NSMC / 向日葵九号 / NASA GIBS 的取图规则
+│   │   ├── history.js    # 历史气温取数与归一化
 │   │   ├── notice-core.js# 是否该弹窗的纯决策逻辑
 │   │   └── store.js      # 共享状态、缓存、10 分钟刷新、React 绑定
 │   ├── ui/
@@ -165,6 +172,9 @@
 │   │   ├── basemap-data.js # 生成产物：西北太平洋陆地轮廓（约 36 KiB）
 │   │   ├── typhoon-view.js # 台风轨迹图（经纬网 + 参考城市 + 风圈等级）
 │   │   ├── radar-view.js # 雷达拼图（区域 / 时次 / 播放）
+│   │   ├── satellite-view.js # 卫星云图（三家源）
+│   │   ├── history-chart.js  # 历史气温折线
+│   │   ├── media-zoom.js     # 共用的大图查看层
 │   │   ├── notice.js     # 启动/新预警提醒弹窗
 │   │   └── panel.js      # 面板组件与位置选择器
 │   └── plugin.js         # 注册入口（三个席位 + store 生命周期）
@@ -211,6 +221,8 @@ npm run check     # 三连
 - 启动提醒在页面打开/刷新时判断，并每 10 分钟轮询以兜底新预警。
 - 系统定位依赖浏览器权限：首次开启会请求授权，被拒绝时回退网络定位并给出提示（开关状态保留）。
 - 雷达图按官方 6 分钟时次生成候选帧：nmc.cn 的帧清单页面没有 CORS 头，浏览器读不到，因此缺帧时靠图片 onerror 回退（最新时次通常滞后 1-2 帧）。全国可回看 24 小时、分区约 2 小时，与官网一致。
+- 卫星云图只接国内官方源（国家卫星气象中心）：清单 XML 与产品图都直连 `img.nsmc.org.cn`（实测 CORS 允许读取清单），影像按官方节奏更新（FY-4B 每 15 分钟、FY-2 每 30 分钟）。
+- 历史气温取的是 Open-Meteo 的逐日统计，`forecast_days=0` 不返回今天，所以曲线截止到**昨天**（完整日）。
 - `°F` 只影响显示，请求始终使用公制。
 
 <div align="center">

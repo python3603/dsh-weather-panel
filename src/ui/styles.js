@@ -445,6 +445,50 @@ const PANEL_BODY_CSS = `
   border:1.5px solid transparent;background:transparent;
 }
 
+/* ---- compact segmented control (range / date switches inside cards) ---- */
+.dshw-segmented-compact .dshw-seg{flex:0 0 auto;height:24px;padding:0 9px;font-size:11px;line-height:16px;border-radius:7px;}
+
+/* ---- history temperature curve ---- */
+.dshw-history{display:flex;flex-direction:column;gap:8px;padding:14px 16px;}
+.dshw-history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+/* 坐标：SVG 高度固定 160px → y 用像素落位，x 用百分比；轴标签 / 圆点都是 HTML，比例与数据严格一致。 */
+.dshw-history-canvas{position:relative;height:176px;}
+.dshw-history-axis-y{position:absolute;left:0;top:0;width:38px;height:160px;pointer-events:none;}
+.dshw-history-axis-y span{
+  position:absolute;right:6px;transform:translateY(-50%);
+  font-size:10px;line-height:12px;color:var(--dsw-alias-label-tertiary,#8b93a1);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.dshw-history-plot{position:relative;margin-left:40px;margin-right:4px;height:160px;}
+.dshw-history-svg{width:100%;height:160px;display:block;overflow:visible;}
+.dshw-history-grid{stroke:var(--dsw-alias-border-l1,#e5e7eb);stroke-width:1;stroke-dasharray:2 4;}
+.dshw-history-axis-x{position:absolute;left:0;right:0;top:162px;height:14px;font-size:9px;line-height:14px;color:var(--dsw-alias-label-tertiary,#8b93a1);}
+.dshw-history-axis-x span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.dshw-history-tick-start{transform:none;}
+.dshw-history-tick-end{transform:translateX(-100%);}
+.dshw-history-dot{
+  position:absolute;width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);
+  box-shadow:0 0 0 1.5px var(--dsw-alias-bg-layer-1,#fff);
+}
+.dshw-history-dot-max{background:#ef4444;}
+.dshw-history-dot-min{background:#38bdf8;}
+.dshw-history-band{fill:var(--dsw-alias-brand-primary,#4f6ef7);fill-opacity:.12;}
+.dshw-history-max{fill:none;stroke:#ef4444;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;}
+.dshw-history-min{fill:none;stroke:#38bdf8;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round;}
+.dshw-history-axis-x{display:flex;justify-content:space-between;font-size:9px;line-height:13px;color:var(--dsw-alias-label-tertiary,#8b93a1);font-variant-numeric:tabular-nums;}
+.dshw-history-skeleton{height:148px;}
+.dshw-history-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.dshw-history-legend{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-secondary,#6b7280);}
+.dshw-legend-max{background:#ef4444;}
+.dshw-legend-min{background:#38bdf8;}
+
+/* ---- satellite ---- */
+.dshw-sat{display:flex;flex-direction:column;gap:10px;padding:14px 16px;}
+.dshw-sat-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.dshw-sat-controls{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;}
+.dshw-sat-field{display:flex;flex-direction:column;gap:3px;min-width:0;}
+
+/* media frame（雷达 / 卫星共用）*/
 /* ---- radar ---- */
 .dshw-radar{display:flex;flex-direction:column;gap:10px;padding:14px 16px;}
 .dshw-radar-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
@@ -461,7 +505,7 @@ const PANEL_BODY_CSS = `
 .dshw-radar-clock{font-size:13px;line-height:18px;font-variant-numeric:tabular-nums;}
 .dshw-radar-scrub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .dshw-radar-range{flex:1 1 140px;min-width:110px;accent-color:var(--dsw-alias-label-primary,#1f2328);}
-.dshw-radar-frame{
+.dshw-media-frame{
   position:relative;display:flex;align-items:center;justify-content:center;
   /* Fixed viewport: the official products are ~825x739, which at full panel width
      is taller than a short window can show. A fixed, viewport-relative box with a
@@ -472,30 +516,30 @@ const PANEL_BODY_CSS = `
   border:1px solid var(--dsw-alias-border-l1,#e5e7eb);
   background:var(--dsw-alias-bg-layer-2,#f7f8fa);
 }
-.dshw-radar-link{appearance:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in;}
-.dshw-radar-zoom{
+.dshw-media-link{appearance:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in;}
+.dshw-zoom{
   position:fixed;inset:0;z-index:2147483000;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
   padding:24px;background:rgba(6,10,18,.86);
 }
-.dshw-radar-zoom-img{
+.dshw-zoom-img{
   max-width:min(92vw,1600px);max-height:76vh;
   border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#fff;
 }
-.dshw-radar-zoom-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;}
-.dshw-radar-zoom-meta{font-size:12px;line-height:16px;color:#e5e7eb;}
-.dshw-radar-zoom .dshw-btn{background:#fff;color:#1f2328;border-color:rgba(255,255,255,.5);}
-.dshw-radar-zoom .dshw-btn:hover{background:#f3f4f6;}
-.dshw-radar-img{
+.dshw-zoom-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;}
+.dshw-zoom-meta{font-size:12px;line-height:16px;color:#e5e7eb;}
+.dshw-zoom .dshw-btn{background:#fff;color:#1f2328;border-color:rgba(255,255,255,.5);}
+.dshw-zoom .dshw-btn:hover{background:#f3f4f6;}
+.dshw-media-img{
   display:block;max-width:100%;max-height:100%;width:auto;height:auto;
   object-fit:contain;
 }
-.dshw-radar-skeleton{
+.dshw-media-skeleton{
   position:absolute;inset:0;
   background:linear-gradient(100deg,transparent 20%,var(--dsw-alias-bg-layer-1,#fff) 50%,transparent 80%);
   background-size:200% 100%;animation:dshw-shimmer 1.6s linear infinite;
 }
-.dshw-radar-broken{position:relative;z-index:1;}
+.dshw-media-broken{position:relative;z-index:1;}
 .dshw-radar-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 @media (max-width:720px){
   .dshw-inner{padding-left:14px;padding-right:14px;}

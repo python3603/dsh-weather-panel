@@ -526,3 +526,30 @@ test('the radar image can be enlarged inside the panel', () => {
   assert.ok(text.includes('关闭'), 'offers a close action');
   assert.ok(text.includes('全国雷达拼图'), 'labels the enlarged product');
 });
+test('the weather tab carries the temperature history card', () => {
+  const { shim, component } = bootBundle({});
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  for (const label of ['历史气温', '近 7 天', '近 30 天']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});
+
+test('the satellite tab exposes all three imagery sources', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'satellite'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  for (const label of ['卫星云图', '国家卫星气象中心', '产品', '时次', '打开官方页面', 'FY-4B · 中国区域 · 伪彩色']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});
