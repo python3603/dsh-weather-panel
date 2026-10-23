@@ -84,6 +84,8 @@ window.__ModuleLoader__.load({
         'alerts.scopeCity': '本市',
         'alerts.scopeRegion': '本省',
         'alerts.more': '另有 {n} 条',
+        'alerts.expand': '展开全部',
+        'alerts.collapse': '收起',
         'alerts.source': '中央气象台 · 中国气象局',
         'alerts.openAll': '查看全部预警',
         'alert.level.blue': '蓝色',
@@ -207,6 +209,8 @@ window.__ModuleLoader__.load({
         'alerts.scopeCity': 'City',
         'alerts.scopeRegion': 'Province',
         'alerts.more': '{n} more',
+        'alerts.expand': 'Show all',
+        'alerts.collapse': 'Collapse',
         'alerts.source': 'NMC · China Meteorological Administration',
         'alerts.openAll': 'See all alerts',
         'alert.level.blue': 'Blue',
@@ -2668,7 +2672,23 @@ window.__ModuleLoader__.load({
     }
     .dshw-hint-text{min-width:0;color:var(--dsw-alias-label-primary,#1f2328);}
     .dshw-alerts{display:flex;flex-direction:column;gap:8px;padding:14px 16px;}
-    .dshw-alerts-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+    .dshw-alerts-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+    .dshw-alerts-head-right{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;}
+    .dshw-alerts-toggle{
+      appearance:none;display:inline-flex;align-items:center;gap:4px;
+      height:20px;padding:0 8px;border-radius:6px;
+      border:1px solid var(--dsw-alias-border-l2,#d1d5db);
+      background:var(--dsw-alias-bg-layer-1,#fff);
+      color:var(--dsw-alias-label-primary,#1f2328);
+      font:inherit;font-size:11px;line-height:18px;font-weight:600;cursor:pointer;white-space:nowrap;
+    }
+    .dshw-alerts-toggle:hover{background:var(--dsw-alias-bg-layer-2,#f3f4f6);}
+    .dshw-alerts-toggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#4f6ef7);outline-offset:1px;}
+    .dshw-caret{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;transition:transform .15s ease;}
+    .dshw-caret-up{transform:rotate(180deg);}
+    /* Expanded rows wrap instead of truncating, so every alert is fully readable. */
+    .dshw-alerts-expanded .dshw-alert-row{align-items:flex-start;}
+    .dshw-alerts-expanded .dshw-alert-text{white-space:normal;overflow:visible;text-overflow:clip;}
     .dshw-alert-list{display:flex;flex-direction:column;gap:4px;}
     .dshw-alert-row{
       display:flex;align-items:center;gap:8px;min-width:0;
@@ -4223,19 +4243,36 @@ window.__ModuleLoader__.load({
 
     function AlertsBanner(props) {
       const { alerts, t, lang } = props;
+      const [expanded, setExpanded] = React.useState(false);
       if (!alerts || alerts.length === 0) return null;
-      const shown = alerts.slice(0, 3);
-      const remaining = alerts.length - shown.length;
-      const highest = alerts[0];
-      return h('section', { className: 'dshw-card dshw-alerts' },
+
+      const listId = 'dshw-alerts-list';
+      const visible = expanded ? alerts : alerts.slice(0, 1);
+      const hidden = alerts.length - visible.length;
+
+      return h('section', { className: `dshw-card dshw-alerts${expanded ? ' dshw-alerts-expanded' : ''}` },
         h('div', { className: 'dshw-alerts-head' },
           h('h2', { className: 'dshw-section-title' }, t('alerts.title')),
-          h('span', { className: 'dshw-note' },
-            `${t('alerts.count', { n: alerts.length })} · ${t('alerts.source')}`
+          h('div', { className: 'dshw-alerts-head-right' },
+            h('span', { className: 'dshw-note' },
+              `${t('alerts.count', { n: alerts.length })} · ${t('alerts.source')}`
+            ),
+            alerts.length > 1
+              ? h('button', {
+                type: 'button',
+                className: 'dshw-alerts-toggle',
+                'aria-expanded': expanded ? 'true' : 'false',
+                'aria-controls': listId,
+                onClick: () => setExpanded(value => !value)
+              },
+                expanded ? t('alerts.collapse') : t('alerts.expand'),
+                h('span', { className: `dshw-caret${expanded ? ' dshw-caret-up' : ''}`, 'aria-hidden': 'true' })
+              )
+              : null
           )
         ),
-        h('div', { className: 'dshw-alert-list' },
-          shown.map(alert => h('a', {
+        h('div', { className: 'dshw-alert-list', id: listId },
+          visible.map(alert => h('a', {
             className: 'dshw-alert-row',
             key: alert.id,
             href: alert.url || 'https://www.nmc.cn/publish/alarm.html',
@@ -4251,17 +4288,15 @@ window.__ModuleLoader__.load({
             )
           ))
         ),
-        remaining > 0 || highest.url
-          ? h('div', { className: 'dshw-alerts-foot' },
-            remaining > 0 ? h('span', { className: 'dshw-note' }, t('alerts.more', { n: remaining })) : null,
-            h('a', {
-              className: 'dshw-link',
-              href: 'https://www.nmc.cn/publish/alarm.html',
-              target: '_blank',
-              rel: 'noreferrer noopener'
-            }, t('alerts.openAll'))
-          )
-          : null
+        h('div', { className: 'dshw-alerts-foot' },
+          !expanded && hidden > 0 ? h('span', { className: 'dshw-note' }, t('alerts.more', { n: hidden })) : h('span', null),
+          h('a', {
+            className: 'dshw-link',
+            href: 'https://www.nmc.cn/publish/alarm.html',
+            target: '_blank',
+            rel: 'noreferrer noopener'
+          }, t('alerts.openAll'))
+        )
       );
     }
 

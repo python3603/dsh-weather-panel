@@ -180,19 +180,36 @@ function HourlyStrip(props) {
 
 function AlertsBanner(props) {
   const { alerts, t, lang } = props;
+  const [expanded, setExpanded] = React.useState(false);
   if (!alerts || alerts.length === 0) return null;
-  const shown = alerts.slice(0, 3);
-  const remaining = alerts.length - shown.length;
-  const highest = alerts[0];
-  return h('section', { className: 'dshw-card dshw-alerts' },
+
+  const listId = 'dshw-alerts-list';
+  const visible = expanded ? alerts : alerts.slice(0, 1);
+  const hidden = alerts.length - visible.length;
+
+  return h('section', { className: `dshw-card dshw-alerts${expanded ? ' dshw-alerts-expanded' : ''}` },
     h('div', { className: 'dshw-alerts-head' },
       h('h2', { className: 'dshw-section-title' }, t('alerts.title')),
-      h('span', { className: 'dshw-note' },
-        `${t('alerts.count', { n: alerts.length })} · ${t('alerts.source')}`
+      h('div', { className: 'dshw-alerts-head-right' },
+        h('span', { className: 'dshw-note' },
+          `${t('alerts.count', { n: alerts.length })} · ${t('alerts.source')}`
+        ),
+        alerts.length > 1
+          ? h('button', {
+            type: 'button',
+            className: 'dshw-alerts-toggle',
+            'aria-expanded': expanded ? 'true' : 'false',
+            'aria-controls': listId,
+            onClick: () => setExpanded(value => !value)
+          },
+            expanded ? t('alerts.collapse') : t('alerts.expand'),
+            h('span', { className: `dshw-caret${expanded ? ' dshw-caret-up' : ''}`, 'aria-hidden': 'true' })
+          )
+          : null
       )
     ),
-    h('div', { className: 'dshw-alert-list' },
-      shown.map(alert => h('a', {
+    h('div', { className: 'dshw-alert-list', id: listId },
+      visible.map(alert => h('a', {
         className: 'dshw-alert-row',
         key: alert.id,
         href: alert.url || 'https://www.nmc.cn/publish/alarm.html',
@@ -208,17 +225,15 @@ function AlertsBanner(props) {
         )
       ))
     ),
-    remaining > 0 || highest.url
-      ? h('div', { className: 'dshw-alerts-foot' },
-        remaining > 0 ? h('span', { className: 'dshw-note' }, t('alerts.more', { n: remaining })) : null,
-        h('a', {
-          className: 'dshw-link',
-          href: 'https://www.nmc.cn/publish/alarm.html',
-          target: '_blank',
-          rel: 'noreferrer noopener'
-        }, t('alerts.openAll'))
-      )
-      : null
+    h('div', { className: 'dshw-alerts-foot' },
+      !expanded && hidden > 0 ? h('span', { className: 'dshw-note' }, t('alerts.more', { n: hidden })) : h('span', null),
+      h('a', {
+        className: 'dshw-link',
+        href: 'https://www.nmc.cn/publish/alarm.html',
+        target: '_blank',
+        rel: 'noreferrer noopener'
+      }, t('alerts.openAll'))
+    )
   );
 }
 

@@ -243,6 +243,33 @@ const ALERT = {
   demo: true
 };
 
+const ALERT_RAIN = {
+  ...ALERT,
+  id: 'sample:rain-orange',
+  title: '山东省青岛市气象台发布暴雨橙色预警信号',
+  type: '暴雨',
+  typeEn: 'Rainstorm',
+  level: 'orange',
+  levelZh: '橙色',
+  levelEn: 'Orange',
+  levelRank: 3,
+  demo: undefined
+};
+
+const ALERT_WIND = {
+  ...ALERT,
+  id: 'sample:wind-yellow',
+  title: '山东省青岛市气象台发布大风黄色预警信号',
+  type: '大风',
+  typeEn: 'Gale',
+  level: 'yellow',
+  levelZh: '黄色',
+  levelEn: 'Yellow',
+  levelRank: 2,
+  scope: 'region',
+  demo: undefined
+};
+
 function createStore(state) {
   return {
     getState: () => state,
@@ -322,6 +349,37 @@ test('the weather panel renders data, alerts and the tab bar', () => {
     assert.ok(text.includes(label), `renders ${label}`);
   }
   assert.ok(text.includes(ALERT.title), 'renders the alert title');
+});
+
+test('multiple alerts collapse to one row with an in-app expand toggle', () => {
+  const alerts = [ALERT, ALERT_RAIN, ALERT_WIND];
+  const { shim, component } = bootBundle({ AlertsBanner: [false] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts }))
+  }));
+
+  assert.ok(text.includes(ALERT.title), 'shows the highest alert');
+  assert.ok(!text.includes(ALERT_RAIN.title), 'keeps the lower alerts collapsed');
+  assert.ok(text.includes('另有 2 条'), 'says how many alerts are hidden');
+  assert.ok(text.includes('展开全部'), 'offers the expand action');
+});
+
+test('expanding the alerts panel lists every alert inside the app', () => {
+  const alerts = [ALERT, ALERT_RAIN, ALERT_WIND];
+  const { shim, component } = bootBundle({ AlertsBanner: [true] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts }))
+  }));
+
+  for (const alert of alerts) assert.ok(text.includes(alert.title), `lists ${alert.id}`);
+  assert.ok(text.includes('收起'), 'offers the collapse action');
+  assert.ok(!text.includes('另有 2 条'), 'the hidden-count note disappears when expanded');
 });
 
 test('the location picker renders when opened (regression: blank panel)', () => {
