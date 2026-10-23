@@ -7,9 +7,9 @@
  */
 
 const CHART_WIDTH = 660;
-const CHART_HEIGHT = 134;
+const CHART_HEIGHT = 126;
 const CHART_PAD_TOP = 12;
-const CHART_PAD_BOTTOM = 20;
+const CHART_PAD_BOTTOM = 8;
 const CHART_PAD_X = 4;
 
 function PrecipitationChart(props) {
@@ -63,14 +63,17 @@ function PrecipitationChart(props) {
     })
     .join(' ');
 
-  const timeLabels = list.map((hour, index) => {
+  // Axis labels are HTML, not SVG text. The plot keeps preserveAspectRatio="none"
+  // so the bars can stretch with the panel width; text inside that box would be
+  // stretched with them (it came out squashed and unevenly spaced).
+  const axisTicks = list.map((hour, index) => {
     if (index % 3 !== 0) return null;
-    return h('text', {
+    const pct = (xFor(index) / CHART_WIDTH) * 100;
+    const align = pct < 4 ? 'start' : (pct > 86 ? 'end' : 'middle');
+    return h('span', {
       key: `tick-${index}`,
-      x: xFor(index),
-      y: CHART_HEIGHT - 6,
-      className: 'dshw-chart-tick',
-      textAnchor: 'middle'
+      className: `dshw-chart-tick dshw-chart-tick-${align}`,
+      style: { left: `${pct.toFixed(2)}%` }
     }, index === 0 ? t('hourly.now') : formatClock(hour.time));
   });
 
@@ -102,8 +105,8 @@ function PrecipitationChart(props) {
     },
       baseline,
       bars,
-      h('polyline', { className: 'dshw-chart-line', points: probabilityPoints }),
-      timeLabels
-    )
+      h('polyline', { className: 'dshw-chart-line', points: probabilityPoints })
+    ),
+    h('div', { className: 'dshw-chart-axis', 'aria-hidden': 'true' }, axisTicks)
   );
 }

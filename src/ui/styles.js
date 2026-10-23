@@ -180,8 +180,8 @@ const PANEL_BODY_CSS = `
 .dshw-alert-text{flex:1 1 0;min-width:0;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dshw-alert-scope{flex:none;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,#8b93a1);}
 .dshw-alerts-foot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
-.dshw-chart{display:flex;flex-direction:column;gap:4px;min-width:0;}
-.dshw-chart-svg{width:100%;height:134px;display:block;}
+.dshw-chart{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.dshw-chart-svg{width:100%;height:126px;display:block;}
 .dshw-chart-legend{display:flex;flex-wrap:wrap;gap:12px;padding:0 2px;}
 .dshw-legend-item{display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary,#6b7280);}
 .dshw-legend-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;}
@@ -193,7 +193,16 @@ const PANEL_BODY_CSS = `
 .dshw-bar-empty{fill:var(--dsw-alias-label-tertiary,#8b93a1);fill-opacity:.18;}
 .dshw-chart-line{fill:none;stroke:var(--dsw-alias-label-tertiary,#8b93a1);stroke-width:1.4;stroke-dasharray:3 3;stroke-linejoin:round;}
 .dshw-chart-baseline{stroke:var(--dsw-alias-border-l1,#e5e7eb);stroke-width:1;}
-.dshw-chart-tick{fill:var(--dsw-alias-label-tertiary,#8b93a1);font-size:9px;}
+/* Axis labels are HTML positioned over the SVG (the plot itself is stretched, so
+   text inside it would be distorted). */
+.dshw-chart-axis{position:relative;height:13px;margin-top:2px;}
+.dshw-chart-tick{
+  position:absolute;top:0;transform:translateX(-50%);
+  font-size:9px;line-height:13px;color:var(--dsw-alias-label-tertiary,#8b93a1);
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.dshw-chart-tick-start{transform:none;}
+.dshw-chart-tick-end{transform:translateX(-100%);}
 .dshw-chart-empty{padding:6px 2px;}
 .dshw-typhoon{display:flex;flex-direction:column;gap:12px;min-width:0;}
 .dshw-typhoon-head{display:flex;flex-direction:column;gap:10px;}
@@ -303,14 +312,17 @@ const PANEL_BODY_CSS = `
   transition:transform .15s ease,background-color .15s ease;
 }
 .dshw-switch-on{
-  background:var(--dsw-alias-label-primary,#1f2328);
+  background:color-mix(in srgb,var(--dsw-alias-label-primary,#1f2328) 18%,transparent);
   border-color:var(--dsw-alias-label-primary,#1f2328);
 }
+/* The knob uses the theme's label colour, not --dsw-alias-bg-base: some themes
+   do not define that token, so the #fff fallback made the knob white on a white
+   track and the switch read as an empty pill. label-primary always contrasts with
+   the panel behind it, so both the knob and the ring stay visible in any theme. */
 .dshw-switch-on .dshw-switch-knob{
   transform:translateX(16px);
-  background:var(--dsw-alias-bg-base,#fff);
+  background:var(--dsw-alias-label-primary,#1f2328);
 }
-.dshw-switch-on + .dshw-switch-state,
 .dshw-switch-control[data-on="true"] .dshw-switch-state{color:var(--dsw-alias-label-primary,#1f2328);}
 @media (prefers-reduced-motion:reduce){
   .dshw-switch,.dshw-switch-knob{transition:none;}
