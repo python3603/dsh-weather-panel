@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-4f6ef7?style=flat-square"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-106%20passing-brightgreen?style=flat-square"/>
   <img alt="Platform" src="https://img.shields.io/badge/surface-Web%20UI-8b5cf6?style=flat-square"/>
 </p>
 
