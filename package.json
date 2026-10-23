@@ -1,6 +1,6 @@
 {
   "name": "dsh-weather-panel",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "DeepSeek Harness 侧边栏天气面板：网络自动定位、5 天与 24 小时预报、逐小时降水、中央气象台预警与台风路径（纯浏览器端，无需 API Key）",
   "keywords": [
     "dsh-plugin",

@@ -106,23 +106,38 @@ the startup notice; caches are written to `localStorage`.
 
 ## Install
 
-Requires DeepSeek Harness **0.2.x** and Node.js ≥ 22 for install/build only.
+Requires DeepSeek Harness **0.2.x** with the Web UI, and Node.js ≥ 22 on the machine (only for installing and building — the plugin itself runs in the browser).
 
-1. Put the repository anywhere, e.g. `C:\path\to\dsh-weather-panel`.
-2. Install it through the plugin manager (`plugin_manager` → `install_bundle`) with the
-   **absolute path of the repository directory**:
+**Option 1: the plugin panel (recommended)**
+
+1. Open the **Plugins** panel in the sidebar and start an install — the input is labelled "**package name or address**".
+2. Enter `dsh-weather-panel`.
+   - If npm is unreachable, switch **install source** to the **mainland China mirror**;
+   - or use `github:python3603/dsh-weather-panel` instead (needs Git installed).
+3. Enable it and restart dsh when prompted; a weather icon appears in the sidebar.
+
+The same thing from the command line (`dsh` ≥ 0.2.1 forwards the arguments to pnpm):
+
+```sh
+dsh plugin add dsh-weather-panel                  # default profile
+dsh plugin --profile web add dsh-weather-panel    # a specific profile
+```
+
+**Option 2: a local checkout (development / your own build)**
+
+1. Clone the repository anywhere, e.g. `C:\path\to\dsh-weather-panel`.
+2. Ask the agent to install it (`plugin_manager` → `install_bundle`, with the **absolute path** of the checkout):
 
    ```
    install_bundle  target: C:\path\to\dsh-weather-panel
    ```
 
-   `application: "applied"` means it is live.
-3. Reload the Web page: a “Weather” icon appears in the left rail.
+   `application: "applied"` means it took effect.
+3. Refresh the Web UI; a weather icon appears in the sidebar.
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="Installed" width="92" />
-</div>
+To uninstall, disable or remove `dsh-weather-panel` on the Plugins page; your checkout is left untouched.
 
+> The plugin-panel and command-line channels follow the install notes of the community project [Fei2411/DeepSeek-Bot](https://github.com/Fei2411/DeepSeek-Bot/blob/main/README.md#installation).
 ## Data sources and licenses
 
 | Use | Service | Notes |

@@ -106,6 +106,23 @@
 
 要求：DeepSeek Harness **0.2.x** 的 Web UI，本机 Node.js ≥ 22（只用于安装与构建，插件本身跑在浏览器）。
 
+**方式一：插件面板（推荐）**
+
+1. 打开侧栏的「插件」面板，点安装——输入框的标签是「**包名或地址**」。
+2. 填 `dsh-weather-panel`。
+   - 连不上 npm 时，把「**安装源**」换成「**中国大陆镜像源**」；
+   - 也可以改填 `github:python3603/dsh-weather-panel`（需要本机装了 Git）。
+3. 装完点「启用」，按提示重启 dsh；左侧栏出现「天气」图标。
+
+命令行等价写法（`dsh` ≥ 0.2.1，参数原样转给 pnpm）：
+
+```sh
+dsh plugin add dsh-weather-panel                  # 默认 profile
+dsh plugin --profile web add dsh-weather-panel    # 指定 profile
+```
+
+**方式二：本地目录（开发 / 自改）**
+
 1. 把仓库放到任意目录，例如 `C:\path\to\dsh-weather-panel`。
 2. 让 Agent 执行插件安装（`plugin_manager` 的 `install_bundle`，目标填**仓库目录的绝对路径**）：
 
@@ -118,10 +135,7 @@
 
 卸载：在「插件」页停用/移除 `dsh-weather-panel`；本地仓库不会被改动。
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/memes/ok.webp" alt="装好了" width="96" />
-</div>
-
+> 插件面板与命令行的安装方式，参考社区项目 [Fei2411/DeepSeek-Bot 的安装说明](https://github.com/Fei2411/DeepSeek-Bot/blob/main/README.zh.md#%E5%AE%89%E8%A3%85)。
 ## 数据来源与许可
 
 | 用途 | 服务 | 说明 |

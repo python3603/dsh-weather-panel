@@ -2,6 +2,11 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.1] - 2026-10-24
+
+### 文档
+- 「安装」一节补上 **DSH 自带的插件面板渠道**：侧栏「插件」→「包名或地址」填 `dsh-weather-panel`（连不上 npm 时把「安装源」换成「中国大陆镜像源」，或改填 `github:python3603/dsh-weather-panel`），以及命令行 `dsh plugin add dsh-weather-panel`；原来的本地目录安装改为「方式二」。
+- 该安装方式的来源标注为社区项目 [Fei2411/DeepSeek-Bot](https://github.com/Fei2411/DeepSeek-Bot/blob/main/README.zh.md) 的安装说明。
 ## [1.5.0] - 2026-10-23
 
 新增「专业」栏：西北太平洋海表温度 + ECMWF 中国区域天气图。
