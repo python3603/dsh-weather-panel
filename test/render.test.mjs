@@ -317,6 +317,7 @@ function baseState(patch) {
     typhoonList: [{ id: 3359119, nameZh: '蔷琵', nameEn: 'CHAMPI', number: '2630', status: 'start' }],
     typhoon: TYPHOON,
     typhoonId: 3359119,
+    typhoonActive: true,
     updatedAt: Date.now(),
     ...patch
   };
@@ -392,7 +393,7 @@ test('the location picker renders when opened (regression: blank panel)', () => 
     store: createStore(baseState({}))
   }));
 
-  for (const label of ['位置来源', '高精度系统定位', '自动（网络定位）', '预览提醒弹窗']) {
+  for (const label of ['位置来源', '网络定位', '系统定位', '预览提醒弹窗']) {
     assert.ok(text.includes(label), `renders ${label} inside the picker`);
   }
 });
@@ -451,4 +452,77 @@ test('the sidebar icon renders without touching the store', () => {
   const Icon = component('sidebar.panellist');
   assert.equal(typeof Icon, 'function');
   assert.doesNotThrow(() => renderToText(shim, shim.React.createElement(Icon, { size: 16, active: true })));
+});
+
+test('the radar tab shows the official product image controls', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'radar'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  for (const label of ['雷达拼图', '区域', '时次', '最新', '播放', '打开官方雷达页', '全国雷达拼图']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});
+
+test('the typhoon tab says so when no typhoon is active', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'typhoon'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ typhoonActive: false }))
+  }));
+
+  assert.ok(text.includes('近期无活跃台风'), 'shows the no-active message');
+  assert.ok(text.includes('查看最近一次'), 'still offers the most recent track');
+  assert.ok(!text.includes('中心气压'), 'does not render the full track by default');
+});
+
+test('alerts carry a type icon and an issue time', () => {
+  const { shim, component } = bootBundle({ AlertsBanner: [true] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT, ALERT_RAIN] }))
+  }));
+
+  assert.ok(text.includes('🌀'), 'renders the typhoon type icon');
+  assert.ok(text.includes('🌧️'), 'renders the rainstorm type icon');
+  assert.ok(text.includes(ALERT.issuedText), 'shows the issue time when expanded');
+});
+
+test('the chart labels the probability scale', () => {
+  const { shim, component } = bootBundle({});
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  for (const label of ['100%', '50%', '0%']) {
+    assert.ok(text.includes(label), `renders the ${label} probability tick`);
+  }
+});
+test('the radar image can be enlarged inside the panel', () => {
+  // RadarView state order: product, index, playing, failed, loadedUrl, zoomed.
+  const { shim, component } = bootBundle({
+    WeatherPanel: ['zh', false, 'radar'],
+    RadarView: ['chinaall', 0, false, {}, '', true]
+  });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({}))
+  }));
+
+  assert.ok(text.includes('打开原图'), 'offers the full-resolution image');
+  assert.ok(text.includes('关闭'), 'offers a close action');
+  assert.ok(text.includes('全国雷达拼图'), 'labels the enlarged product');
 });

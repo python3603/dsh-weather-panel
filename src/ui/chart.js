@@ -85,6 +85,13 @@ function PrecipitationChart(props) {
     className: 'dshw-chart-baseline'
   });
 
+  // Right-hand scale for the dashed probability line: without it the curve had no
+  // readable values. Percentages map exactly onto the line's own y positions.
+  const chanceTicks = [100, 50, 0].map(value => h('span', {
+    key: `chance-${value}`,
+    style: { top: `${((yForChance(value) / CHART_HEIGHT) * 100).toFixed(2)}%` }
+  }, `${value}%`));
+
   return h('div', { className: 'dshw-chart' },
     h('div', { className: 'dshw-chart-legend' },
       h('span', { className: 'dshw-legend-item' },
@@ -96,17 +103,20 @@ function PrecipitationChart(props) {
         `${t('chart.chance')} (%)`
       )
     ),
-    h('svg', {
-      className: 'dshw-chart-svg',
-      viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`,
-      preserveAspectRatio: 'none',
-      role: 'img',
-      'aria-label': t('chart.title')
-    },
-      baseline,
-      bars,
-      h('polyline', { className: 'dshw-chart-line', points: probabilityPoints })
-    ),
-    h('div', { className: 'dshw-chart-axis', 'aria-hidden': 'true' }, axisTicks)
+    h('div', { className: 'dshw-chart-plot' },
+      h('svg', {
+        className: 'dshw-chart-svg',
+        viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`,
+        preserveAspectRatio: 'none',
+        role: 'img',
+        'aria-label': t('chart.title')
+      },
+        baseline,
+        bars,
+        h('polyline', { className: 'dshw-chart-line', points: probabilityPoints })
+      ),
+      h('div', { className: 'dshw-chart-axis', 'aria-hidden': 'true' }, axisTicks),
+      h('div', { className: 'dshw-chart-axis-y', 'aria-hidden': 'true' }, chanceTicks)
+    )
   );
 }

@@ -123,6 +123,35 @@ export function pickTyphoon(list) {
   })[0];
 }
 
+/**
+ * CMA 风圈按风速等级给出（30 / 50 / 64 kt），换算成中国风力量级：
+ * 30 kt ≈ 7 级，50 kt ≈ 10 级，64 kt ≈ 12 级。用于图上标注风圈等级。
+ */
+export const WIND_RADIUS_GRADES = {
+  '30KTS': { zh: '7 级', en: 'Force 7', color: '#38bdf8' },
+  '50KTS': { zh: '10 级', en: 'Force 10', color: '#fb923c' },
+  '64KTS': { zh: '12 级', en: 'Force 12', color: '#ef4444' }
+};
+
+/** Ring colour per wind-force grade; unknown levels fall back to the brand tone. */
+export function windRadiusColor(level) {
+  const key = String(level || '').toUpperCase().replace(/\\s+/g, '');
+  const grade = WIND_RADIUS_GRADES[key];
+  return grade ? grade.color : '#4f6ef7';
+}
+
+export function windRadiusGrade(level, lang) {
+  const key = String(level || '').toUpperCase().replace(/\s+/g, '');
+  const grade = WIND_RADIUS_GRADES[key];
+  if (!grade) return String(level || '');
+  return lang === 'en' ? grade.en : grade.zh;
+}
+
+/** True when at least one numbered typhoon is still active (CMA status `start`). */
+export function listHasActiveTyphoon(list) {
+  return Array.isArray(list) && list.some(item => item && item.status === 'start');
+}
+
 function normalizeWindRadii(value) {
   if (!Array.isArray(value)) return [];
   return value.map(entry => {

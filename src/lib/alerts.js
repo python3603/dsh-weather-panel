@@ -46,6 +46,44 @@ export const ALERT_TYPES = [
   { zh: '低温', en: 'Low temperature' }
 ];
 
+/**
+ * 预警类型图标（emoji，纯展示，不参与解析）。
+ * 未收录的类型统一用 ⚠️，保证任何类型都有可见标识。
+ */
+export const ALERT_TYPE_ICONS = {
+  台风: '🌀',
+  暴雨: '🌧️',
+  暴雪: '❄️',
+  寒潮: '🥶',
+  大风: '💨',
+  沙尘暴: '🌪️',
+  沙尘: '🌪️',
+  高温: '🌡️',
+  干旱: '🌵',
+  雷电: '⚡',
+  雷雨大风: '⛈️',
+  冰雹: '🧊',
+  霜冻: '🧊',
+  大雾: '🌫️',
+  霾: '😷',
+  道路结冰: '⛸️',
+  海上大风: '🌊',
+  海浪: '🌊',
+  风暴潮: '🌊',
+  森林火险: '🔥',
+  强对流: '⛈️',
+  低温: '🥶',
+  地质灾害: '⛰️',
+  渍涝: '💧'
+};
+
+export const ALERT_TYPE_FALLBACK_ICON = '⚠️';
+
+export function alertTypeIcon(type) {
+  const key = String(type || '').trim();
+  return ALERT_TYPE_ICONS[key] || ALERT_TYPE_FALLBACK_ICON;
+}
+
 /** Build one page URL; `pageSize` is capped by the service at 100. */
 export function buildAlarmPageUrl(pageNo, pageSize) {
   const page = Number.isFinite(pageNo) && pageNo > 0 ? Math.floor(pageNo) : 1;

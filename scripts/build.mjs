@@ -33,6 +33,7 @@ const MODULES = [
   'src/lib/typhoon.js',
   'src/lib/geo.js',
   'src/lib/weather.js',
+  'src/lib/radar.js',
   'src/lib/notice-core.js',
   'src/lib/store.js',
   'src/ui/styles.js',
@@ -40,6 +41,7 @@ const MODULES = [
   'src/ui/chart.js',
   'src/ui/basemap-data.js',
   'src/ui/typhoon-view.js',
+  'src/ui/radar-view.js',
   'src/ui/notice.js',
   'src/ui/panel.js',
   'src/plugin.js'

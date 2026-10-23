@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-4f6ef7?style=flat-square"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-87%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square"/>
 </p>
 
 <div align="center">
@@ -54,11 +54,11 @@ the startup notice; caches are written to `localStorage`.
 | Parameters | Humidity, MSL pressure, wind direction + speed, gusts, precipitation, cloud cover, UV (with band), rain chance, sunrise, sunset, observation time |
 | Next 5 days | Daily high/low, condition, rain chance and amount, max wind, max UV |
 | Next 24 hours | Hourly temperature, condition glyph, rain chance |
-| Hourly chart | 24 bars of precipitation plus a dashed probability line; hover any hour for its values |
-| Alerts | National CMA feed matched to your city, then your province; level/type/issue time with a link to the bulletin |
+| Hourly chart | 24 bars of precipitation plus a dashed probability line with a **0 / 50 / 100 % scale** on the right; hover any hour for its values |
+| Alerts | National CMA feed matched to your city, then your province; **expand the list inside the panel** (level, type icon, issue time, bulletin link) instead of jumping to a browser |
 | Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
 | Startup notice | Rain today or an active alert opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it |
-| Location | Automatic (public IP), a persisted high-accuracy device-location switch, or manual city search — source, IP and accuracy are always shown |
+| Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time, plus manual city search — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
 
@@ -82,6 +82,7 @@ the startup notice; caches are written to `localStorage`.
   equirectangular projection: graticule, eight reference cities, observed track coloured by intensity, a
   dashed forecast track with hollow points, wind radii at the latest fix (km converted to degrees, hence
   elliptical), and the bundled Natural Earth land mask as the basemap.
+- **Radar tab**: the same product split as nmc.cn (nationwide plus seven regions); frames follow the official 6-minute cadence, with a slider and play control; images load straight from image.nmc.cn and an unpublished frame falls back to the previous one.
 - **Startup notice**: summarizes today's rain and the active alerts. The confirm button uses the theme's
   text colour rather than white-on-brand, so it stays readable in light and dark themes.
 
@@ -149,9 +150,10 @@ index.js                Host half: intentionally empty
 client.js               built artifact (npm run build)
 docs/assets/            README artwork (original SVG) and stickers
 docs/screenshots/       real UI screenshots (location label redacted)
-src/lib/                pure logic: i18n, links, wmo, format, cache, geo,
+src/lib/                pure logic: i18n, links, wmo, format, cache, geo, radar,
                         weather, alerts, typhoon, notice-core, store
 src/ui/                 styles, icons, chart, basemap-data, typhoon-view,
+                        radar-view,
                         notice, panel
 src/plugin.js           registration entry (three seats + store lifecycle)
 scripts/build.mjs       zero-dependency bundler
@@ -197,6 +199,7 @@ localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // ful
   generalised by about 1–2 km.
 - The notice is evaluated at page load and every 10 minutes afterwards.
 - Device location depends on browser permission; a denial falls back to the network with a hint.
+- Radar frames are generated from the official 6-minute cadence: the nmc.cn frame list serves no CORS headers, so a missing frame is detected by the image request failing and the view falls back to the previous one (the newest frame usually lags by 1-2).
 - `°F` only affects display; requests are always metric.
 
 ## Feedback

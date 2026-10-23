@@ -16,7 +16,7 @@
 // import the actual implementation instead of a silently-degraded copy.
 import { createSafeStorage, createTtlCache } from './cache.js';
 import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, buildAlarmPageUrl, matchAlerts, normalizeAlarmPage } from './alerts.js';
-import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
+import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, listHasActiveTyphoon, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
 import { lookupNetworkLocation, reverseGeocode } from './geo.js';
 import { buildForecastUrl, normalizeForecast } from './weather.js';
 import { formatCoordinates, isNumber } from './format.js';
@@ -443,6 +443,7 @@ export function createWeatherStore() {
     typhoonList: [],
     typhoon: null,
     typhoonId: null,
+    typhoonActive: false,
     updatedAt: null
   };
 
@@ -528,7 +529,8 @@ export function createWeatherStore() {
       emit({
         typhoonList: result.list,
         typhoon: result.detail || state.typhoon,
-        typhoonId: result.pickedId
+        typhoonId: result.pickedId,
+        typhoonActive: listHasActiveTyphoon(result.list)
       });
     })());
 

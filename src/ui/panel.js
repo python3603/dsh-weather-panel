@@ -216,10 +216,16 @@ function AlertsBanner(props) {
         target: '_blank',
         rel: 'noreferrer noopener'
       },
+        h('span', { className: 'dshw-alert-icon', 'aria-hidden': 'true' }, alertTypeIcon(alert.type)),
         h('span', { className: `dshw-level-chip dshw-level-${alert.level || 'blue'}` },
           lang === 'en' ? (alert.levelEn || 'Alert') : (alert.levelZh || '预警')
         ),
         h('span', { className: 'dshw-alert-text' }, alert.title),
+        alert.issuedText
+          ? h('span', { className: 'dshw-alert-time', title: `${t('alerts.issued')} ${alert.issuedText}` },
+            expanded ? alert.issuedText : String(alert.issuedText).split(/\s+/).pop()
+          )
+          : null,
         h('span', { className: 'dshw-alert-scope' },
           alert.scope === 'city' ? t('alerts.scopeCity') : t('alerts.scopeRegion')
         )
@@ -249,7 +255,7 @@ function ProxyHint(props) {
 }
 
 function LocationPicker(props) {
-  const { t, lang, settings, onClose, onAuto, onTogglePrecise, onPreviewNotice, onSelect } = props;
+  const { t, lang, settings, onClose, onNetwork, onSystem, onPreviewNotice, onSelect } = props;
   const [query, setQuery] = React.useState('');
   const [results, setResults] = React.useState([]);
   const [status, setStatus] = React.useState('idle');
@@ -297,29 +303,25 @@ function LocationPicker(props) {
       }, h(CloseGlyph, { size: 14 }))
     ),
     h('p', { className: 'dshw-note' }, t('location.description')),
-    h('div', { className: 'dshw-switch-row' },
-      h('div', { className: 'dshw-switch-text' },
-        h('span', { className: 'dshw-switch-label' }, h(GpsGlyph, { size: 14 }), t('location.precise')),
-        h('span', { className: 'dshw-note' }, t('location.preciseHint'))
-      ),
-      h('div', {
-        className: 'dshw-switch-control',
-        'data-on': settings.preciseLocation ? 'true' : 'false'
-      },
-        h('span', { className: 'dshw-switch-state' },
-          settings.preciseLocation ? t('location.preciseOn') : t('location.preciseOff')),
-        h('button', {
-          type: 'button',
-          role: 'switch',
-          'aria-checked': settings.preciseLocation ? 'true' : 'false',
-          'aria-label': t('location.precise'),
-          className: `dshw-switch ${settings.preciseLocation ? 'dshw-switch-on' : ''}`,
-          onClick: () => onTogglePrecise(!settings.preciseLocation)
-        }, h('span', { className: 'dshw-switch-knob' }))
-      )
+    // Two explicit modes instead of one "automatic" button plus a switch: picking a
+    // city used to leave no obvious way back to the system location.
+    h('div', { className: 'dshw-segmented', role: 'group', 'aria-label': t('location.mode') },
+      h('button', {
+        type: 'button',
+        className: `dshw-seg${settings.preciseLocation ? '' : ' dshw-seg-active'}`,
+        'aria-pressed': settings.preciseLocation ? 'false' : 'true',
+        onClick: onNetwork
+      }, h(PinGlyph, { size: 13 }), t('location.network')),
+      h('button', {
+        type: 'button',
+        className: `dshw-seg${settings.preciseLocation ? ' dshw-seg-active' : ''}`,
+        'aria-pressed': settings.preciseLocation ? 'true' : 'false',
+        onClick: onSystem
+      }, h(GpsGlyph, { size: 13 }), t('location.system'))
     ),
+    h('p', { className: 'dshw-note' }, settings.preciseLocation ? t('location.systemHint') : t('location.networkHint')),
+    settings.override ? h('p', { className: 'dshw-note dshw-picker-manual' }, t('location.manualActive')) : null,
     h('div', { className: 'dshw-picker-actions' },
-      h('button', { type: 'button', className: 'dshw-btn', onClick: onAuto }, h(PinGlyph), t('location.auto')),
       h('button', {
         type: 'button',
         className: 'dshw-btn',
@@ -452,10 +454,18 @@ function WeatherPanel(props) {
     store.setLanguage(lang, translate);
   }, [store, lang, translate]);
 
-  const typhoonAvailable = Boolean(state.typhoon);
+  const typhoonAvailable = Boolean(state.typhoon) || (Array.isArray(state.typhoonList) && state.typhoonList.length > 0);
   React.useEffect(() => {
     if (tab === 'typhoon' && !typhoonAvailable) setTab('weather');
   }, [tab, typhoonAvailable]);
+
+  const tabButton = (key, label) => h('button', {
+    type: 'button',
+    role: 'tab',
+    className: `dshw-tab ${tab === key ? 'dshw-tab-active' : ''}`,
+    'aria-selected': tab === key ? 'true' : 'false',
+    onClick: () => setTab(key)
+  }, label);
 
   const closePanel = props ? props.closePanel : null;
   const settings = state.settings;
@@ -538,12 +548,12 @@ function WeatherPanel(props) {
           lang,
           settings,
           onClose: () => setPickerOpen(false),
-          onAuto: () => {
+          onNetwork: () => {
             store.clearOverride();
             setPickerOpen(false);
           },
-          onTogglePrecise: enabled => {
-            store.setPreciseLocation(enabled);
+          onSystem: () => {
+            store.setPreciseLocation(true);
             setPickerOpen(false);
           },
           onPreviewNotice: () => {
@@ -576,24 +586,11 @@ function WeatherPanel(props) {
 
       h(AlertsBanner, { alerts: state.alerts, t: translate, lang }),
 
-      typhoonAvailable
-        ? h('div', { className: 'dshw-tabs', role: 'tablist' },
-          h('button', {
-            type: 'button',
-            role: 'tab',
-            className: `dshw-tab ${tab === 'weather' ? 'dshw-tab-active' : ''}`,
-            'aria-selected': tab === 'weather' ? 'true' : 'false',
-            onClick: () => setTab('weather')
-          }, translate('tab.weather')),
-          h('button', {
-            type: 'button',
-            role: 'tab',
-            className: `dshw-tab ${tab === 'typhoon' ? 'dshw-tab-active' : ''}`,
-            'aria-selected': tab === 'typhoon' ? 'true' : 'false',
-            onClick: () => setTab('typhoon')
-          }, translate('tab.typhoon'))
-        )
-        : null,
+      h('div', { className: 'dshw-tabs', role: 'tablist' },
+        tabButton('weather', translate('tab.weather')),
+        tabButton('radar', translate('tab.radar')),
+        typhoonAvailable ? tabButton('typhoon', translate('tab.typhoon')) : null
+      ),
 
       !forecast && tab === 'weather'
         ? h(PanelSkeleton, {
@@ -605,14 +602,20 @@ function WeatherPanel(props) {
         ? h(WeatherTab, { t: translate, lang, units, forecast, current, today, upcoming, hours })
         : null,
 
+      tab === 'radar'
+        ? h(RadarView, { t: translate, lang })
+        : null,
+
       tab === 'typhoon'
-        ? h(TyphoonView, {
-          typhoon: state.typhoon,
-          typhoonList: state.typhoonList,
-          t: translate,
-          lang,
-          onSelectTyphoon: id => store.selectTyphoon(id)
-        })
+        ? (state.typhoonActive && state.typhoon
+          ? h(TyphoonView, {
+            typhoon: state.typhoon,
+            typhoonList: state.typhoonList,
+            t: translate,
+            lang,
+            onSelectTyphoon: id => store.selectTyphoon(id)
+          })
+          : h(NoActiveTyphoon, { typhoon: state.typhoon, t: translate, lang }))
         : null,
 
       h(PanelFooter, { t: translate, state })

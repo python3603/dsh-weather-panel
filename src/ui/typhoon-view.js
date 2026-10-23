@@ -81,15 +81,21 @@ function referenceCities(bounds, project, lang) {
 function windRadiusRings(latest, project) {
   if (!latest || !Array.isArray(latest.windRadii)) return [];
   const kmPerDegLat = 111.32;
+  const cx = project.x(latest.lon);
+  const cy = project.y(latest.lat);
+  // Colour carries the wind-force grade (7 / 10 / 12), matching the legend; the
+  // rings stay outline-only so the track underneath is never hidden.
   return latest.windRadii.map((ring, index) => {
-    const rx = (ring.radiusKm / (kmPerDegLat * project.cosLat)) * project.scale;
-    const ry = (ring.radiusKm / kmPerDegLat) * project.scale;
+    const rx = Math.max(1, (ring.radiusKm / (kmPerDegLat * project.cosLat)) * project.scale);
+    const ry = Math.max(1, (ring.radiusKm / kmPerDegLat) * project.scale);
+    const color = windRadiusColor(ring.level);
     return h('ellipse', {
       key: `ring-${ring.level || index}`,
-      cx: project.x(latest.lon),
-      cy: project.y(latest.lat),
-      rx: Math.max(1, rx),
-      ry: Math.max(1, ry),
+      cx,
+      cy,
+      rx,
+      ry,
+      style: { stroke: color, fill: color },
       className: `dshw-wind-ring dshw-wind-ring-${index}`
     });
   });
@@ -165,6 +171,14 @@ function TyphoonLegend(props) {
     TYPHOON_LEVELS.map(level => h('span', { className: 'dshw-legend-item', key: level.code },
       h('i', { className: 'dshw-legend-dot', style: { background: level.color } }),
       lang === 'en' ? level.en : level.zh
+    )),
+    h('span', { className: 'dshw-legend-sep', 'aria-hidden': 'true' }),
+    h('span', { className: 'dshw-legend-item dshw-legend-group' },
+      lang === 'en' ? 'Wind rings' : '风圈'
+    ),
+    Object.keys(WIND_RADIUS_GRADES).map(key => h('span', { className: 'dshw-legend-item', key: `ring-${key}` },
+      h('i', { className: 'dshw-legend-ring', style: { borderColor: windRadiusColor(key) } }),
+      windRadiusGrade(key, lang)
     ))
   );
 }
@@ -390,6 +404,58 @@ function TyphoonView(props) {
 
     h('p', { className: 'dshw-note dshw-typhoon-source' },
       [t('typhoon.source'), latest && latest.timeText ? latest.timeText : '', t('typhoon.land')].filter(Boolean).join(' · ')
+    )
+  );
+}
+
+/**
+ * Shown when the CMA list carries no active (numbered) typhoon.
+ *
+ * The most recent ended system is still offered behind a button, because its
+ * track is often what people come to look at out of season.
+ */
+function NoActiveTyphoon(props) {
+  const { typhoon, t, lang } = props;
+  const [showLast, setShowLast] = React.useState(false);
+
+  if (showLast && typhoon) {
+    return h('div', { className: 'dshw-typhoon' },
+      h('div', { className: 'dshw-typhoon-nonebar' },
+        h('span', { className: 'dshw-note' }, t('typhoon.noActive')),
+        h('button', {
+          type: 'button',
+          className: 'dshw-btn',
+          onClick: () => setShowLast(false)
+        }, t('typhoon.hideLatest'))
+      ),
+      h(TyphoonView, {
+        typhoon,
+        typhoonList: [],
+        t,
+        lang,
+        onSelectTyphoon: () => {}
+      })
+    );
+  }
+
+  return h('section', { className: 'dshw-card dshw-typhoon-empty' },
+    h('div', { className: 'dshw-typhoon-empty-icon', 'aria-hidden': 'true' }, '🌀'),
+    h('h2', { className: 'dshw-section-title' }, t('typhoon.noActive')),
+    h('p', { className: 'dshw-note' }, t('typhoon.noActiveHint')),
+    h('div', { className: 'dshw-typhoon-empty-actions' },
+      typhoon
+        ? h('button', {
+          type: 'button',
+          className: 'dshw-btn',
+          onClick: () => setShowLast(true)
+        }, t('typhoon.viewLatest'))
+        : null,
+      h('a', {
+        className: 'dshw-btn',
+        href: 'https://typhoon.nmc.cn/web.html',
+        target: '_blank',
+        rel: 'noreferrer noopener'
+      }, t('typhoon.official'))
     )
   );
 }

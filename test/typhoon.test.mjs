@@ -8,12 +8,15 @@ import {
   isCurrentFix,
   formatTyphoonNumber,
   normalizeTyphoonDetail,
+  listHasActiveTyphoon,
   normalizeTyphoonList,
   parseJsonp,
   parseTyphoonNumber,
   peakIntensity,
   pickTyphoon,
-  trackBounds
+  trackBounds,
+  windRadiusColor,
+  windRadiusGrade
 } from '../src/lib/typhoon.js';
 
 /** Two track points + one forecast entry, in the service's array shape. */
@@ -168,4 +171,39 @@ test('"current" means no manual pick, or the newest point itself', () => {
   assert.equal(isCurrentFix('4', 5), true, 'numeric strings are tolerated');
   assert.equal(isCurrentFix('3', 5), false);
   assert.equal(isCurrentFix(2, 5), false);
+});
+
+test('wind ring levels are labelled with Chinese wind-force grades', () => {
+  assert.equal(windRadiusGrade('30KTS', 'zh'), '7 级');
+  assert.equal(windRadiusGrade('50kts', 'zh'), '10 级');
+  assert.equal(windRadiusGrade('64KTS', 'en'), 'Force 12');
+  // Unknown levels fall through instead of showing "undefined".
+  assert.equal(windRadiusGrade('99KTS', 'zh'), '99KTS');
+  assert.equal(windRadiusGrade(null, 'zh'), '');
+});
+
+test('an all-stopped list counts as no active typhoon', () => {
+  const stopped = normalizeTyphoonList({
+    typhoonList: [
+      [3346033, 'KOGUMA', '小熊', '2629', '2629', null, '小熊星座', 'stop'],
+      [3346168, 'NOLO', '诺洛', '2628', '2628', null, null, 'stop']
+    ]
+  });
+  assert.equal(listHasActiveTyphoon(stopped), false);
+
+  const mixed = normalizeTyphoonList({
+    typhoonList: [
+      [3359119, 'CHAMPI', '蔷琵', '2630', '2630', null, '一种花', 'start'],
+      [3346033, 'KOGUMA', '小熊', '2629', '2629', null, '小熊星座', 'stop']
+    ]
+  });
+  assert.equal(listHasActiveTyphoon(mixed), true);
+  assert.equal(listHasActiveTyphoon([]), false);
+  assert.equal(listHasActiveTyphoon(null), false);
+});
+test('wind rings get distinct colours per grade', () => {
+  const colors = ['30KTS', '50KTS', '64KTS'].map(level => windRadiusColor(level));
+  assert.equal(new Set(colors).size, 3, 'each grade has its own colour');
+  assert.equal(windRadiusColor('50kts'), colors[1], 'level lookup is case-insensitive');
+  assert.equal(windRadiusColor('99KTS'), '#4f6ef7', 'unknown levels fall back to the brand tone');
 });
