@@ -66,26 +66,43 @@ the startup notice; caches are written to `localStorage`.
 ## Screenshots
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="Weather tab: current conditions, eight parameters, five-day forecast and hourly precipitation" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="Weather tab: current conditions, eight parameters, five-day forecast, hourly chart and temperature history" width="100%" />
   <br/>
-  <sub>Weather tab — current conditions, eight parameters, five-day forecast, hourly chart and 24-hour strip (location label redacted in the shot)</sub>
+  <sub>Weather tab — current conditions, eight parameters, five-day forecast, hourly chart plus the temperature history card (sample location is a manually picked Shanghai)</sub>
 </div>
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="Typhoon tab: observed track, forecast track, intensity colours and wind radii" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-satellite.webp" alt="Satellite tab: FY-4B China sector pseudo-colour imagery" width="100%" />
   <br/>
-  <sub>Typhoon tab — observed track coloured by intensity, dashed forecast track, wind radii, reference cities and graticule</sub>
+  <sub>Satellite imagery — six NSMC products (FY-4B / FY-2G) with a frame slider and click-to-enlarge</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-radar.webp" alt="Radar tab: nationwide CMA radar mosaic" width="100%" />
+  <br/>
+  <sub>Radar mosaic — nationwide plus seven regions, 6-minute frames, play-through</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="Typhoon tab: observed and forecast tracks, intensity colours and graded wind radii" width="100%" />
+  <br/>
+  <sub>Typhoon tab — track coloured by intensity, forecast track, force-7/10/12 wind rings, reference cities and graticule</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-pro.webp" alt="Pro tab: NW Pacific sea surface temperature and ECMWF China charts" width="100%" />
+  <br/>
+  <sub>Pro tab — NW Pacific sea surface temperature (15 days back) and ECMWF China charts (00Z/12Z runs, 0–240 h)</sub>
 </div>
 
 ## Interface
-- **Weather tab**: current-condition card (eight parameters), five forecast cards, the hourly chart and a 24-hour strip.
-- **Typhoon tab**: appears whenever there is an active or most recent system. The chart is drawn with an
-  equirectangular projection: graticule, eight reference cities, observed track coloured by intensity, a
-  dashed forecast track with hollow points, wind radii at the latest fix (km converted to degrees, hence
-  elliptical), and the bundled Natural Earth land mask as the basemap.
-- **Radar tab**: the same product split as nmc.cn (nationwide plus seven regions); frames follow the official 6-minute cadence, with a slider and play control; images load straight from image.nmc.cn and an unpublished frame falls back to the previous one.
-- **Startup notice**: summarizes today's rain and the active alerts. The confirm button uses the theme's
-  text colour rather than white-on-brand, so it stays readable in light and dark themes.
+
+- **Weather tab**: current-condition card (eight parameters), five forecast cards, the hourly chart and a 24-hour strip, plus the temperature history (7 / 30-day lines).
+- **Satellite tab**: six NSMC products (FY-4B China sector and full disk, FY-2G, 15-minute global IR) read from the official XML manifests, with a frame slider, step buttons and click-to-enlarge.
+- **Radar tab**: CMA radar mosaic with the same product split as nmc.cn (nationwide plus seven regions), 6-minute frames, a slider and play-through; an unpublished frame falls back to the previous one.
+- **Typhoon tab**: the active (or most recent) system — track coloured by intensity, dashed forecast track, force-7/10/12 wind rings by colour; when nothing is active it says so and still offers the most recent track.
+- **Pro tab**: NW Pacific sea surface temperature (eight basins, 15 days back) and ECMWF China charts (four products, 00Z/12Z runs, 0–240 h), both enlargeable.
+- **Startup notice**: summarizes today's rain and the active alerts. The confirm button uses the theme's text colour rather than white-on-brand, so it stays readable in light and dark themes.
 
 ## Install
 

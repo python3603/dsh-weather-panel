@@ -64,21 +64,42 @@
 ## 实际界面
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="天气页：当前天气、8 项气象参数、未来 5 天与逐小时降水" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-weather.webp" alt="天气页：当前天气、8 项气象参数、未来 5 天、逐小时降水与历史气温" width="100%" />
   <br/>
-  <sub>天气页 · 当前天气 + 8 项气象参数 + 未来 5 天 + 逐小时降水与 24 小时条带（图中位置标签已打码）</sub>
+  <sub>天气页 · 当前天气 + 8 项气象参数 + 未来 5 天 + 逐小时降水 + 历史气温（示例定位为手动选择的上海）</sub>
 </div>
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="台风页：实况轨迹、预报路径、强度配色与风圈" width="100%" />
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-satellite.webp" alt="卫星云图页：FY-4B 中国区域伪彩色云图" width="100%" />
   <br/>
-  <sub>台风页 · 实况轨迹（按强度着色）+ 预报路径 + 风圈 + 参考城市与经纬网</sub>
+  <sub>卫星云图 · 国家卫星气象中心 FY-4B / FY-2G 共六个产品，逐帧滑杆与点击放大</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-radar.webp" alt="雷达页：全国雷达拼图" width="100%" />
+  <br/>
+  <sub>雷达拼图 · 全国 + 七大分区，6 分钟时次，逐帧播放</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-typhoon.webp" alt="台风页：实况轨迹、预报路径、强度配色与带等级的风圈" width="100%" />
+  <br/>
+  <sub>台风页 · 实况轨迹（按强度着色）+ 预报路径 + 7 / 10 / 12 级风圈 + 参考城市与经纬网</sub>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-pro.webp" alt="专业页：西北太平洋海表温度与 ECMWF 中国区域天气图" width="100%" />
+  <br/>
+  <sub>专业栏 · 西北太平洋海表温度（按日回看 15 天）+ ECMWF 中国区域天气图（00Z / 12Z、0–240h）</sub>
 </div>
 
 ## 界面说明
-- **天气页**：当前天气大卡（含 8 项参数）+ 未来 5 天卡片 + 逐小时降水图与 24 小时条带。
-- **台风页**：有活跃或最近一次台风时自动出现页签。图表用等距圆柱投影绘制：经纬网、8 个参考城市、实况轨迹（按强度着色）、预报路径（虚线 + 空心点）、最新位置的风圈（按 km 换算为经纬度半径，呈椭圆），并复用内置的 Natural Earth 陆地轮廓作为底图。
-- **雷达页**：产品划分与 nmc.cn 一致（全国 + 七大分区）；时次按官方 6 分钟规则生成，滑杆逐帧查看、可播放动画；产品图直连 image.nmc.cn，未发布的时次自动回退到上一帧。
+
+- **天气页**：当前天气大卡（含 8 项参数）+ 未来 5 天卡片 + 逐小时降水图与 24 小时条带 + 历史气温（近 7 / 30 天折线）。
+- **卫星页**：国家卫星气象中心六个产品（FY-4B 中国区域 / 全圆盘、FY-2G、全球红外 15 分钟），按官方 XML 清单逐帧读取，滑杆 + 上一帧/下一帧 + 点击放大。
+- **雷达页**：中央气象台雷达拼图，产品划分与 nmc.cn 一致（全国 + 七大分区）；时次按官方 6 分钟规则生成，滑杆逐帧 + 播放动画，未发布的时次自动回退。
+- **台风页**：活跃台风或最近一次；实况轨迹按强度着色、预报路径虚线、7/10/12 级风圈按颜色区分；无活跃台风时显示「近期无活跃台风」，仍可查看最近一次。
+- **专业栏**：西北太平洋海表温度（8 个海域、按日回看 15 天）+ ECMWF 中国区域天气图（4 种产品、00Z/12Z 起报、0–240h），图片均可点击放大。
 - **启动提醒**：弹窗汇总今日降水与生效预警；确认按钮使用主题文字色（不使用「品牌色填充 + 白字」），浅色与深色主题下均保持可读。
 
 ## 安装
