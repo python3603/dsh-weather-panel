@@ -71,6 +71,11 @@
 </div>
 
 <div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-alerts.webp" alt="预警页：分级列表、同城参考组与提醒设置" width="100%" />
+  <br/>
+  <sub>预警页 · 按本区/本市/本省匹配，点开看要点摘要与防范要点，下方是分级提醒设置</sub>
+</div>
+<div align="center">
   <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-satellite.webp" alt="卫星云图页：FY-4B 中国区域伪彩色云图" width="100%" />
   <br/>
   <sub>卫星云图 · 国家卫星气象中心 FY-4B / FY-2G 共六个产品，逐帧滑杆与点击放大</sub>

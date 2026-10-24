@@ -73,6 +73,11 @@ the startup notice; caches are written to `localStorage`.
 </div>
 
 <div align="center">
+  <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-alerts.webp" alt="Alerts tab: graded list, same-city reference group and the reminder settings" width="100%" />
+  <br/>
+  <sub>Alerts tab — district → city → province matching, an expandable summary with what to do, and per-level reminder settings</sub>
+</div>
+<div align="center">
   <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/screenshots/panel-satellite.webp" alt="Satellite tab: FY-4B China sector pseudo-colour imagery" width="100%" />
   <br/>
   <sub>Satellite imagery — six NSMC products (FY-4B / FY-2G) with a frame slider and click-to-enlarge</sub>
