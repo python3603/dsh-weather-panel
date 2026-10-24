@@ -108,7 +108,25 @@
 
 要求：DeepSeek Harness **0.2.x** 的 Web UI，本机 Node.js ≥ 22（只用于安装与构建，插件本身跑在浏览器）。
 
-**方式一：插件面板（推荐）**
+**方式一：插件市场（dsh-market / Awesome DSH Plugin 索引）**
+
+本插件已被收录在 [Awesome DSH Plugin](https://awesome-dsh-plugin.com) 与 [dsh-market](https://github.com/dsh-market/dsh-market) 市场里，可以在图形界面里一键装：
+
+1. 打开 **设置 → 插件 → 发现**（Discover），在「索引源」里添加：
+   `https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json`
+   （备用：`https://awesome-dsh-plugin.com/index.json`、`https://dshmarket.com/index.json`）
+2. 搜 `dsh-weather-panel`，点安装。
+3. 想要更好的市场体验（一键升级、主题切换），可以再装 dsh-market：
+
+```sh
+dsh plugin --profile web add dshmarket
+```
+
+> ⚠️ **市场索引比 npm 慢半拍**：索引由 `dsh-plugin-catalog` 包提供，版本号要等它重新发布才会更新。
+> **想第一时间用上最新版，请手动装 npm 包**（下面方式二，或命令行 `dsh plugin add dsh-weather-panel`），
+> 不要等市场刷新。
+
+**方式二：插件面板（推荐，版本最及时）**
 
 1. 打开侧栏的「插件」面板，点安装——输入框的标签是「**包名或地址**」。
 2. 填 `dsh-weather-panel`。
@@ -123,7 +141,7 @@ dsh plugin add dsh-weather-panel                  # 默认 profile
 dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 ```
 
-**方式二：本地目录（开发 / 自改）**
+**方式三：本地目录（开发 / 自改）**
 
 1. 把仓库放到任意目录，例如 `C:\path\to\dsh-weather-panel`。
 2. 让 Agent 执行插件安装（`plugin_manager` 的 `install_bundle`，目标填**仓库目录的绝对路径**）：

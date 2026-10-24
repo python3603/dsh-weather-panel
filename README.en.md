@@ -109,7 +109,24 @@ the startup notice; caches are written to `localStorage`.
 
 Requires DeepSeek Harness **0.2.x** with the Web UI, and Node.js ≥ 22 on the machine (only for installing and building — the plugin itself runs in the browser).
 
-**Option 1: the plugin panel (recommended)**
+**Option 1: a plugin market (Awesome DSH Plugin index / dsh-market)**
+
+This plugin is listed on [Awesome DSH Plugin](https://awesome-dsh-plugin.com) and in [dsh-market](https://github.com/dsh-market/dsh-market), so you can install it from a UI:
+
+1. Open **Settings → Plugins → Discover** and add this index source:
+   `https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json`
+   (mirrors: `https://awesome-dsh-plugin.com/index.json`, `https://dshmarket.com/index.json`)
+2. Search for `dsh-weather-panel` and install.
+3. For a nicer market (one-click upgrades, theme switching) you can also add dsh-market:
+
+```sh
+dsh plugin --profile web add dshmarket
+```
+
+> ⚠️ **The market index lags behind npm**: it is served by the `dsh-plugin-catalog` package, whose version only moves when that package is republished.
+> **For the newest release, install from npm directly** (Option 2 below, or `dsh plugin add dsh-weather-panel`) instead of waiting for the index to refresh.
+
+**Option 2: the plugin panel (recommended, always the newest version)**
 
 1. Open the **Plugins** panel in the sidebar and start an install — the input is labelled "**package name or address**".
 2. Enter `dsh-weather-panel`.
@@ -124,7 +141,7 @@ dsh plugin add dsh-weather-panel                  # default profile
 dsh plugin --profile web add dsh-weather-panel    # a specific profile
 ```
 
-**Option 2: a local checkout (development / your own build)**
+**Option 3: a local checkout (development / your own build)**
 
 1. Clone the repository anywhere, e.g. `C:\path\to\dsh-weather-panel`.
 2. Ask the agent to install it (`plugin_manager` → `install_bundle`, with the **absolute path** of the checkout):
