@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-121%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-135%20passing-brightgreen?style=flat-square"/>
   <img alt="Platform" src="https://img.shields.io/badge/surface-Web%20UI-8b5cf6?style=flat-square"/>
 </p>
 
@@ -50,9 +50,10 @@
 | 未来 5 天 | 每天最高/最低、天气现象、降水概率、降水量、最大风速、紫外线最大值 |
 | 未来 24 小时 | 逐时温度、天气图标、降水概率 |
 | 逐小时降水图 | 24 小时降水柱状图 + 降水概率虚线，右侧带 **0 / 50 / 100% 概率刻度**，悬停显示每个小时的具体数值 |
-| 气象预警 | 中央气象台全国预警按「本市 → 本省」匹配；**可在面板内展开查看全部预警**（等级、类型图标、发布时间、原文链接），不必跳浏览器 |
+| 气象预警 | 独立「**预警**」页签：按**本区/县 → 本市 → 本省**三级精度匹配；列表只给等级、类型、时间，点开才展开**要点摘要 + 防范要点**，末尾才是官方原文链接；同市其他区县的预警单列「参考」组，不弹窗、不打扰 |
+| 分级提醒 | 蓝/黄/橙/红**每级独立开关**提醒；再单独标记「**加强**」，被标记的等级弹窗会换成该等级的配色、加顶部警示条与脉冲圆点 |
 | 台风路径 | 活跃台风或最近一次：离线海岸线底图、轨迹、预报路径、强度配色、**带等级标注的风圈（7 / 10 / 12 级）**；可点选轨迹点看当时气压/风速/移动，一键「回到当前时刻」；**中央气象台无活跃台风时显示「近期无活跃台风」并可查看最近一次** |
-| 启动提醒 | 打开 DSH 后，若今日有降水或生效预警则弹窗（需确认）；当天已确认不再打扰，出现新预警会再次提醒 |
+| 启动提醒 | 打开 DSH 后，若今日有降水或达到你设定等级的预警则弹窗（需确认）；当天已确认不再打扰，出现新预警会再次提醒；可在「预警 → 提醒设置」里按等级开关与加强 |
 | 位置 | **网络定位（公网 IP）/ 系统定位（浏览器高精度，持久生效）二选一**，随时切回；也可手动搜索城市；副标题标明来源、IP 与精度 |
 | 代理提示 | 出口 IP 不在中国大陆时，顶部提示「可能开了代理/VPN，请手动切换城市」 |
 | 雷达 | **官方雷达拼图**：全国 + 华北/东北/华东/华中/华南/西南/西北，与 nmc.cn 相同的产品划分；时次滑杆 + 播放动画，图片直连 `image.nmc.cn` |
@@ -95,6 +96,7 @@
 
 ## 界面说明
 
+- **预警页**：本区/本市 + 省级预警列表，点开看要点摘要与防范指南，末尾给官方原文；下方是分级提醒设置与「预览弹窗」（按当前定位生成示例预警）。
 - **天气页**：当前天气大卡（含 8 项参数）+ 未来 5 天卡片 + 逐小时降水图与 24 小时条带 + 历史气温（近 7 / 30 天折线）。
 - **卫星页**：国家卫星气象中心六个产品（FY-4B 中国区域 / 全圆盘、FY-2G、全球红外 15 分钟），按官方 XML 清单逐帧读取，滑杆 + 上一帧/下一帧 + 点击放大。
 - **雷达页**：中央气象台雷达拼图，产品划分与 nmc.cn 一致（全国 + 七大分区）；时次按官方 6 分钟规则生成，滑杆逐帧 + 播放动画，未发布的时次自动回退。
@@ -144,7 +146,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 | 网络定位 | [ipwho.is](https://ipwho.is/)、[ipinfo.io](https://ipinfo.io/)、[api.ip.sb](https://ip.sb/) | 三源并发竞速，先可用者胜；单源失败不影响面板 |
 | 逆地理编码 | [BigDataCloud](https://www.bigdatacloud.com/) | 坐标 → 「北京市 · 朝阳区」 |
 | 城市搜索 | Open-Meteo Geocoding | 中文查询自动追加「市」变体并重排 |
-| 气象预警 | **中央气象台** `www.nmc.cn/rest/findAlarm` | 全国生效预警（实测 CORS `*`），按标题中的市/省名过滤 |
+| 气象预警 | **中央气象台** `www.nmc.cn/rest/findAlarm` | 全国生效预警（实测 CORS `*`），按标题里的台站层级（省台 / 市台 / 区县台）匹配；详情页无 CORS，因此详情用内置的要点摘要 + 官方原文链接 |
 | 台风 | **中央气象台台风网** `typhoon.nmc.cn` | JSONP 接口，取回后自行剥壳解析；轨迹/预报/风圈/强度 |
 | 底图 | [Natural Earth](https://www.naturalearthdata.com/) 1:50m 陆地 | 公有领域；构建期裁剪西北太平洋并抽稀，打进 bundle，约 36 KiB |
 | 雷达 | **中央气象台雷达拼图** `image.nmc.cn` | 官方产品图（PNG），按官方 6 分钟时次规则取帧；图片加载不需要 CORS |
@@ -168,7 +170,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 
 **性能**
 - 共享 store：面板与启动提醒共用同一份数据，页面打开只定位/取数一次。
-- 单次请求覆盖当前 + 逐时 + 逐日；预警翻页仅在首页无匹配时继续（最多 3 页）。
+- 单次请求覆盖当前 + 逐时 + 逐日；预警每次并行取**前 5 页**（最多 500 条），这样同一座城市散落在不同页的几条预警不会漏。
 - 缓存 TTL：预报/预警 10 分钟、定位 6 小时、台风 1 小时；重开面板与轮询通常零请求。
 - 每个刷新周期使用独立 `AbortController`，新刷新取消旧刷新；所有请求有硬超时。
 - 页面隐藏时不轮询，切回时若数据已过期立即补刷。
@@ -185,7 +187,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 ├── client.js             # 构建产物（npm run build 生成，勿手改）
 ├── icon.svg / locale/    # 插件管理器里的图标与标题描述
 ├── docs/assets/          # README 插图与表情包（原创 SVG / 自用图库）
-├── docs/screenshots/     # 真实界面截图（位置标签已打码）
+├── docs/screenshots/     # 真实界面截图
 ├── src/
 │   ├── lib/              # 纯逻辑，Node 里可直接 import 测试
 │   │   ├── i18n.js       # 双语词典、插值、Host 翻译降级
@@ -195,7 +197,8 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 │   │   ├── cache.js      # TTL 缓存 + 安全 Storage
 │   │   ├── geo.js        # IP 定位竞速、逆地理、城市搜索
 │   │   ├── weather.js    # Open-Meteo 请求构造与归一化
-│   │   ├── alerts.js     # 中央气象台预警解析、地名匹配、签名
+│   │   ├── alerts.js     # 中央气象台预警解析、台站层级匹配、签名
+│   │   ├── alert-guides.js # 各类型预警的防范要点（详情面板用）
 │   │   ├── typhoon.js    # 台风 JSONP 解析、轨迹/预报/边界/强度/风圈等级
 │   │   ├── radar.js      # 雷达产品与时次规则、官方图片 URL
 │   │   ├── satellite.js  # NSMC / 向日葵九号 / NASA GIBS 的取图规则
@@ -214,7 +217,8 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 │   │   ├── history-chart.js  # 历史气温折线
 │   │   ├── pro-chart-view.js # 专业栏（海温 + ECMWF）
 │   │   ├── media-zoom.js     # 共用的大图查看层
-│   │   ├── notice.js     # 启动/新预警提醒弹窗
+│   │   ├── alerts-view.js # 预警页（列表 / 详情 / 分级设置 / 预览）
+│   │   ├── notice.js     # 启动/新预警提醒弹窗（分级过滤 + 加强样式）
 │   │   └── panel.js      # 面板组件与位置选择器
 │   └── plugin.js         # 注册入口（三个席位 + store 生命周期）
 ├── scripts/build.mjs     # 零依赖打包：拼接 src → client.js
@@ -238,16 +242,16 @@ npm run check     # 三连
 
 ## 测试提醒弹窗
 
-面板 →「更换位置」→ 点「预览提醒弹窗」，用一条演示用的台风红色预警触发启动提醒（不写入真实数据）：
+「预警」页 →「设置」→ 选等级 → 点「预览弹窗」：按**当前定位**生成一条示例预警并直接弹窗（不写入真实数据、不参与真实匹配）。
 
-- 演示数据只写 `dsh-weather-panel:demo-alert`，不参与真实预警匹配，也不进缓存；
+- 预览数据只写 `dsh-weather-panel:demo-alert`（值为 `preview:<等级>`），不参与真实预警匹配，也不进缓存；
 - 弹窗里点「知道了」会自动清掉演示开关；
 - 演示模式忽略「今日已确认」去重，便于反复查看样式；
 - 也可在浏览器控制台（Electron 中 Ctrl+Shift+I）手动切换：
 
   ```js
-  localStorage.setItem('dsh-weather-panel:demo-alert', 'typhoon-red'); location.reload();  // 台风红色
-  localStorage.setItem('dsh-weather-panel:demo-alert', 'rain-orange'); location.reload();  // 暴雨橙色
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'preview:red'); location.reload();     // 红色预览
+  localStorage.setItem('dsh-weather-panel:demo-alert', 'preview:blue'); location.reload();    // 蓝色预览
   localStorage.removeItem('dsh-weather-panel:demo-alert');
   localStorage.removeItem('dsh-weather-panel:notice'); location.reload();                  // 完全复位
   ```
@@ -255,7 +259,7 @@ npm run check     # 三连
 ## 已知限制
 
 - IP 定位只到城市级，且可能落在运营商或代理出口；面板会显示来源与 IP，并用顶部提示建议手动切换。
-- 预警来自全国实时流并按标题匹配：先本市，无匹配再本省；「本市无、邻市有」这类边界情况可能显示为本省预警。
+- 预警来自全国实时流并按标题匹配：**本区/县 → 本市 → 本省**。NMC 标题只写发布台站的全称，所以「本市有多个区、但你没设到区」时，同城各区的预警会并列为市级；同市其他区县的预警放在「参考」组里，不弹窗。
 - 台风底图为离线陆地轮廓（Natural Earth 1:50m，公有领域，仅陆地、不画国界）：无需 Key、不受 CORS/额度限制、可离线使用；代价是没有地名与行政区划，海岸线在 1:50m 粒度下约有 1–2 km 概化误差。
 - 启动提醒在页面打开/刷新时判断，并每 10 分钟轮询以兜底新预警。
 - 系统定位依赖浏览器权限：首次开启会请求授权，被拒绝时回退网络定位并给出提示（开关状态保留）。

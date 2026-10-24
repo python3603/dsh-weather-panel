@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-121%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-135%20passing-brightgreen?style=flat-square"/>
 </p>
 
 <div align="center">
@@ -56,9 +56,10 @@ the startup notice; caches are written to `localStorage`.
 | Next 5 days | Daily high/low, condition, rain chance and amount, max wind, max UV |
 | Next 24 hours | Hourly temperature, condition glyph, rain chance |
 | Hourly chart | 24 bars of precipitation plus a dashed probability line with a **0 / 50 / 100 % scale** on the right; hover any hour for its values |
-| Alerts | National CMA feed matched to your city, then your province; **expand the list inside the panel** (level, type icon, issue time, bulletin link) instead of jumping to a browser |
+| Alerts | A dedicated **Alerts** tab: district → city → province matching. The list shows level, type and time only; a row expands to a **summary + what to do**, with the official page at the end. Other districts of the same city sit in a "reference" group that never raises a notice |
+| Level policy | Blue/yellow/orange/red each raise a notice or not, and each can be marked **emphatic** — that level then paints the dialog in its own colour, with a warning bar and a pulsing dot |
 | Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
-| Startup notice | Rain today or an active alert opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it |
+| Startup notice | Rain today, or a warning at a level you enabled, opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it. Levels and the emphatic style live in Alerts → Settings |
 | Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time, plus manual city search — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
@@ -146,7 +147,7 @@ To uninstall, disable or remove `dsh-weather-panel` on the Plugins page; your ch
 | Network location | [ipwho.is](https://ipwho.is/), [ipinfo.io](https://ipinfo.io/), [api.ip.sb](https://ip.sb/) | Raced concurrently; one failure cannot break the panel |
 | Reverse geocoding | [BigDataCloud](https://www.bigdatacloud.com/) | Coordinates → readable place name |
 | City search | Open-Meteo Geocoding | Chinese queries also run a `市` variant and get re-ranked |
-| Alerts | CMA `www.nmc.cn/rest/findAlarm` | National active-alert feed (CORS `*`) |
+| Alerts | CMA `www.nmc.cn/rest/findAlarm` | National active-alert feed; details are a built-in summary plus the official page link because the detail page sends no CORS header (CORS `*`) |
 | Typhoons | CMA typhoon service `typhoon.nmc.cn` | JSONP; stripped and parsed in the browser |
 | Basemap | [Natural Earth](https://www.naturalearthdata.com/) 1:50m land | Public domain; clipped and simplified at build time (~36 KiB) |
 
@@ -182,12 +183,12 @@ cordis.patch.yml        inserts one Host plugin row
 index.js                Host half: intentionally empty
 client.js               built artifact (npm run build)
 docs/assets/            README artwork (original SVG) and stickers
-docs/screenshots/       real UI screenshots (location label redacted)
+docs/screenshots/       real UI screenshots
 src/lib/                pure logic: i18n, links, wmo, format, cache, geo, radar,
-                        weather, alerts, typhoon, notice-core, store
-src/ui/                 styles, icons, chart, basemap-data, typhoon-view,
-                        radar-view,
-                        notice, panel
+                        weather, alerts, alert-guides, typhoon, notice-core, store
+src/ui/                 styles, icons, chart, history-chart, basemap-data,
+                        typhoon-view, radar-view, satellite-view, pro-chart-view,
+                        alerts-view, media-zoom, notice, panel
 src/plugin.js           registration entry (three seats + store lifecycle)
 scripts/build.mjs       zero-dependency bundler
 scripts/build-basemap.mjs  regenerates the offline coastline
@@ -214,12 +215,12 @@ blanking the user's panel.
 
 ## Testing the startup notice
 
-Panel → “Change location” → “Preview the notice” fires the dialog immediately with a demo red typhoon
-warning. It never touches real data, and acknowledging it clears the demo switch. From the console you
-can also use:
+Alerts tab → Settings → pick a level → “Preview” builds a sample warning for the **current location** and
+opens the notice immediately. It never touches real data, and acknowledging it clears the preview switch.
+From the console you can also use:
 
 ```js
-localStorage.setItem('dsh-weather-panel:demo-alert', 'typhoon-red'); location.reload();
+localStorage.setItem('dsh-weather-panel:demo-alert', 'preview:red'); location.reload();   // red preview
 localStorage.removeItem('dsh-weather-panel:demo-alert');
 localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // full reset
 ```
@@ -227,7 +228,7 @@ localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // ful
 ## Known limits
 
 - Public-IP geolocation is city level and can land on a carrier or proxy exit.
-- Alerts come from a national feed matched by title: city first, then province.
+- Alerts come from a national feed matched by title, in three tiers: district, then city, then province. The feed names the issuing station, so with no district set a city shows all of its districts; other districts of the same city are listed for reference and never raise a notice.
 - The typhoon basemap is an offline land mask (no place names, no borders); at 1:50m a coastline is
   generalised by about 1–2 km.
 - The notice is evaluated at page load and every 10 minutes afterwards.

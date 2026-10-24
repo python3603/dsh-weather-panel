@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 
 import {
   ALERT_LEVELS,
+  DEFAULT_ALERT_NOTICE,
+  alertCountsByLevel,
+  alertGradeLabel,
+  alertLevelColor,
   alertSignature,
+  buildAlertDetail,
+  filterAlertsByLevels,
   buildAlarmPageUrl,
   highestAlertRank,
   matchAlerts,
@@ -135,4 +141,63 @@ test('a higher-level city alert outranks a lower-level one', () => {
   const matched = matchAlerts(alerts, location);
   assert.equal(matched[0].id, 'high');
   assert.equal(highestAlertRank(matched), 4);
+});
+test('each level carries its official grade and colour', () => {
+  assert.equal(alertGradeLabel('red', 'zh'), 'Ⅰ级 · 特别严重');
+  assert.equal(alertGradeLabel('orange', 'en'), 'Grade II · serious');
+  assert.equal(alertLevelColor('blue'), '#3b82f6');
+  assert.equal(alertLevelColor('nope'), '#6b7280');
+  assert.equal(ALERT_LEVELS.length, 4);
+});
+
+test('the detail of a warning is a summary plus its type guide', () => {
+  const alert = normalizeAlert({
+    alertid: 'x1',
+    issuetime: '2026/10/24 11:40',
+    title: '浙江省舟山市岱山县气象台发布台风黄色预警信号',
+    url: '/publish/alarm/x1.html'
+  });
+  const detail = buildAlertDetail(alert, 'zh');
+  assert.equal(detail.level, '黄色');
+  assert.equal(detail.grade, 'Ⅲ级');
+  assert.equal(detail.severity, '较重');
+  assert.equal(detail.type, '台风');
+  assert.match(detail.summary, /台风/);
+  assert.ok(detail.bullets.length >= 3, 'has defence items');
+  assert.match(detail.url, /^https:\/\/www\.nmc\.cn\/publish\/alarm\/x1\.html$/);
+
+  // An unknown type still yields usable generic advice instead of an empty panel.
+  const unknown = buildAlertDetail({ ...alert, type: '外星天气' }, 'zh');
+  assert.ok(unknown.summary.length > 0);
+  assert.ok(unknown.bullets.length > 0);
+});
+
+test('only the levels the user enabled raise a notice', () => {
+  const alerts = ['red', 'orange', 'yellow', 'blue'].map((level, index) => ({ id: `a${index}`, level }));
+  assert.deepEqual(
+    filterAlertsByLevels(alerts, DEFAULT_ALERT_NOTICE).map(item => item.level),
+    ['red', 'orange', 'yellow'],
+    'blue is off by default'
+  );
+  assert.deepEqual(
+    filterAlertsByLevels(alerts, { blue: true, yellow: false, orange: false, red: true }).map(item => item.level),
+    ['red', 'blue']
+  );
+  assert.deepEqual(filterAlertsByLevels(alerts, null), []);
+  assert.deepEqual(alertCountsByLevel(alerts), { blue: 1, yellow: 1, orange: 1, red: 1 });
+});
+
+test('a district hit outranks a city hit', () => {
+  const location = { district: '岱山县', city: '舟山市', region: '浙江省' };
+  const alerts = [
+    normalizeAlert({ alertid: 'city', issuetime: '2026/10/24 10:00', title: '浙江省舟山市气象台发布大风黄色预警信号', url: '/a' }),
+    normalizeAlert({ alertid: 'county', issuetime: '2026/10/24 09:00', title: '浙江省舟山市岱山县气象台发布台风黄色预警信号', url: '/b' })
+  ];
+  const matched = matchAlerts(alerts, location);
+  const byId = Object.fromEntries(matched.map(item => [item.id, item]));
+  assert.equal(byId.county.matchedOn, '岱山县', 'the county name wins over the city name');
+  assert.equal(byId.city.matchedOn, '舟山市');
+  assert.equal(byId.county.scope, 'district', 'the county station is a district hit');
+  assert.ok(!matched.some(item => item.scope === 'region'), 'neither falls back to the province');
+  assert.equal(matched.length, 2);
 });

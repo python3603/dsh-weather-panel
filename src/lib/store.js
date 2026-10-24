@@ -15,7 +15,7 @@
 // shared scope). They exist so this file is a real ESM module and Node tests
 // import the actual implementation instead of a silently-degraded copy.
 import { createSafeStorage, createTtlCache } from './cache.js';
-import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, buildAlarmPageUrl, matchAlerts, normalizeAlarmPage } from './alerts.js';
+import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, DEFAULT_ALERT_NOTICE, DEFAULT_ALERT_STRONG, ALERT_LEVELS, ALERT_TYPES, buildAlarmPageUrl, matchAlerts, normalizeAlarmPage } from './alerts.js';
 import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, listHasActiveTyphoon, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
 import { lookupNetworkLocation, reverseGeocode } from './geo.js';
 import { buildForecastUrl, normalizeForecast } from './weather.js';
@@ -32,7 +32,13 @@ const TYPHOON_TTL_MS = 60 * 60 * 1000;
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 12000;
-const DEFAULT_SETTINGS = { units: 'metric', preciseLocation: false, override: null };
+const DEFAULT_SETTINGS = {
+  units: 'metric',
+  preciseLocation: false,
+  override: null,
+  alertNotice: { ...DEFAULT_ALERT_NOTICE },
+  alertStrong: { ...DEFAULT_ALERT_STRONG }
+};
 
 let sharedStorage = null;
 let sharedLocationCache = null;
@@ -82,6 +88,16 @@ export function placeCacheKey(location) {
 /* Settings                                                           */
 /* ------------------------------------------------------------------ */
 
+/** A persisted per-level switch map, missing keys filled from the defaults. */
+export function normalizeLevelMap(value, defaults) {
+  const base = defaults || DEFAULT_ALERT_NOTICE;
+  const out = {};
+  for (const key of Object.keys(base)) {
+    out[key] = value && typeof value[key] === 'boolean' ? value[key] : base[key];
+  }
+  return out;
+}
+
 function normalizeOverride(value) {
   if (!value || !isNumber(value.lat) || !isNumber(value.lon)) return null;
   return {
@@ -89,6 +105,7 @@ function normalizeOverride(value) {
     lon: value.lon,
     label: typeof value.label === 'string' ? value.label : '',
     city: typeof value.city === 'string' ? value.city : '',
+    district: typeof value.district === 'string' ? value.district : '',
     region: typeof value.region === 'string' ? value.region : '',
     source: value.source === 'gps' ? 'gps' : 'manual'
   };
@@ -103,7 +120,9 @@ export function readPanelSettings() {
       units: parsed && parsed.units === 'imperial' ? 'imperial' : 'metric',
       // Persisted across starts: the switch is a user decision, not a one-shot.
       preciseLocation: Boolean(parsed && parsed.preciseLocation === true),
-      override: parsed ? normalizeOverride(parsed.override) : null
+      override: parsed ? normalizeOverride(parsed.override) : null,
+      alertNotice: normalizeLevelMap(parsed && parsed.alertNotice, DEFAULT_ALERT_NOTICE),
+      alertStrong: normalizeLevelMap(parsed && parsed.alertStrong, DEFAULT_ALERT_STRONG)
     };
   } catch (error) {
     return { ...DEFAULT_SETTINGS };
@@ -179,16 +198,41 @@ export function clearDemoAlert() {
  * Only used when `dsh-weather-panel:demo-alert` is set to a preset name; the
  * real alert pipeline is untouched, so nothing here can fire by accident.
  */
-export function buildDemoAlert(kind, nowMs) {
-  const preset = DEMO_ALERT_PRESETS[String(kind || '').trim()];
-  if (!preset) return null;
+export function buildDemoAlert(kind, nowMs, location) {
+  const raw = String(kind || '').trim();
+  if (!raw) return null;
   const now = new Date(Number.isFinite(nowMs) ? nowMs : Date.now());
   const pad = value => String(value).padStart(2, '0');
+  const issuedText = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const isPreview = raw.startsWith('preview:');
+  let preset = null;
+  if (isPreview) {
+    // 预览用**当前定位**的城市名，这样弹窗里的地址和面板一致。
+    const levelKey = raw.slice('preview:'.length).split(':')[0];
+    const level = ALERT_LEVELS.find(item => item.key === levelKey) || ALERT_LEVELS[2];
+    const type = ALERT_TYPES.find(item => item.zh === '暴雨') || { zh: '暴雨', en: 'Rainstorm' };
+    const city = location ? String(location.city || '').trim() : '';
+    const region = location ? String(location.region || '').trim() : '';
+    const place = `${region}${city}` || (location && location.label ? String(location.label) : '本地');
+    preset = {
+      title: `${place}气象台发布${type.zh}${level.zh}预警信号`,
+      type: type.zh,
+      typeEn: type.en,
+      level: level.key,
+      levelZh: level.zh,
+      levelEn: level.en,
+      levelRank: level.rank,
+      place
+    };
+  } else {
+    preset = DEMO_ALERT_PRESETS[raw];
+  }
+  if (!preset) return null;
   return {
-    id: `demo:${kind}`,
+    id: `demo:${raw}`,
     title: preset.title,
     issuedAt: now.getTime(),
-    issuedText: `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    issuedText,
     url: 'https://www.nmc.cn/publish/alarm.html',
     pic: '',
     type: preset.type,
@@ -199,7 +243,8 @@ export function buildDemoAlert(kind, nowMs) {
     levelRank: preset.levelRank,
     place: preset.place,
     scope: 'city',
-    demo: true
+    demo: true,
+    preview: isPreview
   };
 }
 
@@ -294,6 +339,8 @@ export async function describeLocation(found, signal, lang) {
     provider: found.provider || '',
     countryCode: found.countryCode || (reversed && reversed.countryCode) || '',
     city: (reversed && reversed.city) || found.city || '',
+    // 城市里的区/县：NMC 标题会写到区县一级，有了这个才能匹配到「本市某区」的预警。
+    district: (reversed && reversed.locality) || found.district || '',
     region: (reversed && reversed.region) || found.region || ''
   };
 }
@@ -375,18 +422,19 @@ async function loadAlerts(location, signal, force) {
   const savedAt = getAlertCache().savedAt(cacheKey);
   if (!force && cached && savedAt && Date.now() - savedAt < ALERTS_TTL_MS) return cached;
 
+  // 全国预警按时间倒序，同一座城市的几条往往散落在不同页；只扫第一页会漏掉
+  // 更早发布但仍生效的那条。前 5 页（最多 500 条）一次并行取完，代价是 5 个请求 / 10 分钟。
   const first = await fetchAlarmPage(1, signal);
-  let matched = matchAlerts(first.alerts, location);
-  let scanned = first.count || first.alerts.length;
-  if (matched.length === 0 && first.totalPage > 1) {
+  const lastPage = Math.min(first.totalPage || 1, ALARM_MAX_PAGES);
+  let all = first.alerts;
+  if (lastPage > 1) {
     const pages = [];
-    const lastPage = Math.min(first.totalPage, ALARM_MAX_PAGES);
     for (let page = 2; page <= lastPage; page += 1) pages.push(page);
     const rest = await Promise.all(pages.map(page => fetchAlarmPage(page, signal).catch(() => ({ alerts: [] }))));
-    const all = first.alerts.concat(...rest.map(item => item.alerts || []));
-    matched = matchAlerts(all, location);
-    scanned = Math.max(first.count || 0, all.length);
+    all = first.alerts.concat(...rest.map(item => item.alerts || []));
   }
+  const matched = matchAlerts(all, location);
+  const scanned = Math.max(first.count || 0, all.length);
   const result = { alerts: matched, scanned, checkedAt: Date.now() };
   getAlertCache().set(cacheKey, result, ALERTS_TTL_MS);
   return result;
@@ -512,7 +560,7 @@ export function createWeatherStore() {
     })());
 
     tasks.push((async () => {
-      const demo = buildDemoAlert(readDemoAlertKind());
+      const demo = buildDemoAlert(readDemoAlertKind(), undefined, location);
       if (demo) {
         if (!alive(run)) return;
         emit({ alerts: [demo], alertsScanned: 1, alertsCheckedAt: Date.now() });
@@ -639,6 +687,7 @@ export function createWeatherStore() {
         lon: city.lon,
         label: [city.name, city.region].filter(Boolean).join(' · '),
         city: city.name,
+        district: city.district || '',
         region: city.region,
         source: 'manual'
       });
@@ -654,6 +703,25 @@ export function createWeatherStore() {
       } catch (error) {
         /* keep the previous track; the UI shows the cached one */
       }
+    },
+    /** Which levels raise the startup notice. */
+    setAlertNoticeLevel(level, enabled) {
+      const key = String(level || '');
+      if (!(key in DEFAULT_ALERT_NOTICE)) return;
+      const next = { ...settings.alertNotice, [key]: enabled === true };
+      persist({ alertNotice: next });
+    },
+    /** Which levels use the emphatic notice style. */
+    setAlertStrongLevel(level, enabled) {
+      const key = String(level || '');
+      if (!(key in DEFAULT_ALERT_STRONG)) return;
+      const next = { ...settings.alertStrong, [key]: enabled === true };
+      persist({ alertStrong: next });
+    },
+    /** Preview the notice for one level, using the current location. */
+    previewAlert(level) {
+      setDemoAlertKind(`preview:${String(level || 'yellow')}`);
+      refresh({ force: true });
     },
     /** Inject a fake alert to inspect the notice; cleared when acknowledged. */
     showDemoAlert(kind) {

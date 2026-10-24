@@ -8,6 +8,7 @@ import {
   readDemoAlertKind,
   placeCacheKey,
   readNoticeState,
+  normalizeLevelMap,
   readPanelSettings,
   todayKey,
   writeNoticeState,
@@ -101,4 +102,36 @@ test('unknown demo presets are ignored and the switch defaults to off', () => {
   assert.equal(buildDemoAlert(undefined), null);
   assert.deepEqual(demoAlertKinds().sort(), ['rain-orange', 'typhoon-red']);
   assert.equal(typeof readDemoAlertKind(), 'string', 'always readable, even without storage');
+});
+test('per-level reminder switches default to yellow/orange/red', () => {
+  const settings = readPanelSettings();
+  assert.deepEqual(settings.alertNotice, { blue: false, yellow: true, orange: true, red: true });
+  assert.deepEqual(settings.alertStrong, { blue: false, yellow: false, orange: true, red: true });
+  // Missing keys fall back to the defaults, unknown junk is ignored.
+  assert.deepEqual(
+    normalizeLevelMap({ red: false, nothing: true }, { blue: false, yellow: true, orange: true, red: true }),
+    { blue: false, yellow: true, orange: true, red: false }
+  );
+});
+
+test('a preview alert is built for the current location', () => {
+  const now = Date.UTC(2026, 9, 24, 3, 40);
+  const location = { city: '青岛市', region: '山东省', label: '青岛市 · 山东省' };
+  const red = buildDemoAlert('preview:red', now, location);
+  assert.equal(red.level, 'red');
+  assert.equal(red.demo, true);
+  assert.equal(red.preview, true);
+  assert.match(red.title, /山东省青岛市气象台发布暴雨红色预警信号/);
+  assert.match(red.issuedText, /^2026\/10\/24 \d{2}:40$/);
+
+  const blue = buildDemoAlert('preview:blue', now, location);
+  assert.equal(blue.level, 'blue');
+
+  // Without a location the preview still renders instead of throwing.
+  const fallback = buildDemoAlert('preview:orange', now, null);
+  assert.ok(fallback.title.includes('本地'));
+
+  // The legacy presets keep working (the settings shortcut still uses them).
+  assert.equal(buildDemoAlert('typhoon-red', now, location).level, 'red');
+  assert.equal(buildDemoAlert('nonsense', now, location), null);
 });

@@ -288,7 +288,10 @@ function createStore(state) {
     selectCity() {},
     selectTyphoon() {},
     showDemoAlert() {},
-    stopDemoAlert() {}
+    stopDemoAlert() {},
+    previewAlert() {},
+    setAlertNoticeLevel() {},
+    setAlertStrongLevel() {}
   };
 }
 
@@ -333,7 +336,7 @@ const PANEL_PROPS = {
 /* Tests                                                               */
 /* ------------------------------------------------------------------ */
 
-test('the weather panel renders data, alerts and the tab bar', () => {
+test('the panel renders the weather tab and every tab label', () => {
   const { shim, component } = bootBundle({});
   const Panel = component('main');
   assert.equal(typeof Panel, 'function');
@@ -346,41 +349,97 @@ test('the weather panel renders data, alerts and the tab bar', () => {
   // `t: key => key` makes the panel fall back to its bundled dictionary, so the
   // rendered text is the Chinese copy — asserting on it proves the dictionary is
   // wired into the tree, not just present in the module.
-  for (const label of ['天气面板', '未来 5 天', '未来 24 小时', '降水量', '气象预警', '台风']) {
+  for (const label of ['天气面板', '未来 5 天', '未来 24 小时', '降水量', '预警', '卫星', '雷达', '台风', '专业']) {
     assert.ok(text.includes(label), `renders ${label}`);
   }
-  assert.ok(text.includes(ALERT.title), 'renders the alert title');
 });
 
-test('multiple alerts collapse to one row with an in-app expand toggle', () => {
+test('the alerts tab lists every warning in force', () => {
   const alerts = [ALERT, ALERT_RAIN, ALERT_WIND];
-  const { shim, component } = bootBundle({ AlertsBanner: [false] });
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
   const Panel = component('main');
 
   const text = renderToText(shim, shim.React.createElement(Panel, {
     ...PANEL_PROPS,
-    store: createStore(baseState({ alerts }))
-  }));
-
-  assert.ok(text.includes(ALERT.title), 'shows the highest alert');
-  assert.ok(!text.includes(ALERT_RAIN.title), 'keeps the lower alerts collapsed');
-  assert.ok(text.includes('另有 2 条'), 'says how many alerts are hidden');
-  assert.ok(text.includes('展开全部'), 'offers the expand action');
-});
-
-test('expanding the alerts panel lists every alert inside the app', () => {
-  const alerts = [ALERT, ALERT_RAIN, ALERT_WIND];
-  const { shim, component } = bootBundle({ AlertsBanner: [true] });
-  const Panel = component('main');
-
-  const text = renderToText(shim, shim.React.createElement(Panel, {
-    ...PANEL_PROPS,
-    store: createStore(baseState({ alerts }))
+    store: createStore(baseState({ alerts, alertsScanned: 412, alertsCheckedAt: Date.now() }))
   }));
 
   for (const alert of alerts) assert.ok(text.includes(alert.title), `lists ${alert.id}`);
-  assert.ok(text.includes('收起'), 'offers the collapse action');
-  assert.ok(!text.includes('另有 2 条'), 'the hidden-count note disappears when expanded');
+  assert.ok(text.includes('已扫描全国 412 条预警'), 'reports how many national warnings were scanned');
+  assert.ok(text.includes('提醒设置'), 'offers the per-level settings card');
+  assert.ok(!text.includes('防范要点'), 'keeps the detail closed until a row is opened');
+});
+
+test('the alerts tab shows level grades and the city scope', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT, ALERT_WIND] }))
+  }));
+
+  assert.ok(text.includes('Ⅰ级 · 特别严重'), 'labels the red level with its official grade');
+  assert.ok(text.includes('Ⅲ级 · 较重'), 'labels the yellow level with its official grade');
+  assert.ok(text.includes('本市'), 'marks a city-scope warning');
+  assert.ok(text.includes('本省'), 'marks a province-scope warning');
+  const districtAlert = { ...ALERT_RAIN, id: 'sample:district', scope: 'district', title: '上海市徐汇区气象台发布暴雨黄色预警信号' };
+  const withDistrict = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [districtAlert] }))
+  }));
+  assert.ok(withDistrict.includes('本区/县'), 'marks a district-scope warning');
+});
+
+test('opening a warning shows its summary, guide and the official link', () => {
+  // AlertsView's useStates are [openId, previewLevel, settingsOpen].
+  const { shim, component } = bootBundle({
+    WeatherPanel: ['zh', false, 'alerts'],
+    AlertsView: [ALERT_RAIN.id]
+  });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT, ALERT_RAIN] }))
+  }));
+
+  assert.ok(text.includes('短时降雨强度大'), 'shows the rainstorm summary');
+  assert.ok(text.includes('防范要点'), 'has the guide heading');
+  assert.ok(text.includes('低洼地区、地下空间人员及时转移'), 'lists the first guide item');
+  assert.ok(text.includes('查看官方原文'), 'links to the official page at the end');
+  assert.ok(text.includes('发布时间'), 'shows the issue time inside the detail');
+  assert.ok(!text.includes('受台风或其外围环流影响'), 'only the opened warning expands its summary');
+});
+
+test('the alert settings expose per-level toggles and a preview', () => {
+  const { shim, component } = bootBundle({
+    WeatherPanel: ['zh', false, 'alerts'],
+    AlertsView: ['', 'yellow', true]
+  });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT] }))
+  }));
+
+  for (const label of ['提醒设置', '蓝色', '黄色', '橙色', '红色', '提醒', '加强', '预览弹窗', '预览地点']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});
+
+test('the alerts tab says so when the city has no warnings', () => {
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [] }))
+  }));
+
+  assert.ok(text.includes('当地暂无生效预警'), 'shows the empty state');
+  assert.ok(text.includes('查看全部预警'), 'still links to the national list');
 });
 
 test('the location picker renders when opened (regression: blank panel)', () => {
@@ -445,6 +504,7 @@ test('the startup notice renders for an active alert', () => {
     assert.ok(text.includes(label), `renders ${label}`);
   }
   assert.ok(text.includes(ALERT.title), 'renders the alert line');
+  assert.ok(text.includes('notice.muteLevel'), 'offers a one-click mute for this level');
 });
 
 test('the sidebar icon renders without touching the store', () => {
@@ -483,7 +543,7 @@ test('the typhoon tab says so when no typhoon is active', () => {
 });
 
 test('alerts carry a type icon and an issue time', () => {
-  const { shim, component } = bootBundle({ AlertsBanner: [true] });
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
   const Panel = component('main');
 
   const text = renderToText(shim, shim.React.createElement(Panel, {
@@ -493,7 +553,7 @@ test('alerts carry a type icon and an issue time', () => {
 
   assert.ok(text.includes('🌀'), 'renders the typhoon type icon');
   assert.ok(text.includes('🌧️'), 'renders the rainstorm type icon');
-  assert.ok(text.includes(ALERT.issuedText), 'shows the issue time when expanded');
+  assert.ok(text.includes(ALERT.issuedText), 'shows the issue time');
 });
 
 test('the chart labels the probability scale', () => {
@@ -565,4 +625,92 @@ test('the pro tab shows the SST and ECMWF panels', () => {
   for (const label of ['西北太平洋海表温度', 'ECMWF 中国区域天气图', '海域', '产品', '起报时次', '预报时效', 'easterlywave.com']) {
     assert.ok(text.includes(label), `renders ${label}`);
   }
+});
+test('the alerts tab keeps same-city other districts in a reference group', () => {
+  const other = {
+    ...ALERT_RAIN,
+    id: 'other:1',
+    scope: 'other',
+    title: '上海市崇明区气象台发布暴雨蓝色预警信号'
+  };
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT, other] }))
+  }));
+
+  assert.ok(text.includes('本市其他区县（参考）'), 'has the reference group');
+  assert.ok(text.includes(other.title), 'lists the other districts warning');
+  assert.ok(text.includes('不会触发你的提醒'), 'explains that it never raises a notice');
+});
+
+test('the notice filters the levels the user switched off', () => {
+  const blue = { ...ALERT, id: 'blue-only', level: 'blue', levelZh: '蓝色', levelRank: 1, title: '山东省青岛市气象台发布大风蓝色预警信号' };
+  const { shim, component } = bootBundle({});
+  const Notice = component('shell.overlay');
+  const base = baseState({ alerts: [blue] });
+
+  const off = renderToText(shim, shim.React.createElement(Notice, {
+    ...PANEL_PROPS,
+    store: createStore({ ...base, settings: { ...base.settings, alertNotice: { blue: false, yellow: true, orange: true, red: true } } })
+  }));
+  assert.ok(!off.includes(blue.title), 'a switched-off level never reaches the notice');
+
+  const on = renderToText(shim, shim.React.createElement(Notice, {
+    ...PANEL_PROPS,
+    store: createStore({ ...base, settings: { ...base.settings, alertNotice: { blue: true, yellow: true, orange: true, red: true } } })
+  }));
+  assert.ok(on.includes(blue.title), 'the same alert appears once its level is on');
+});
+
+test('an emphatic level adds the warning bar to the notice', () => {
+  const { shim, component } = bootBundle({});
+  const Notice = component('shell.overlay');
+  const base = baseState({ alerts: [ALERT] });
+  const strongMap = { blue: false, yellow: false, orange: false, red: true };
+
+  const strong = renderToText(shim, shim.React.createElement(Notice, {
+    ...PANEL_PROPS,
+    store: createStore({ ...base, settings: { ...base.settings, alertStrong: strongMap } })
+  }));
+  assert.ok(strong.includes('notice.strong'), 'renders the emphatic bar for a red alert');
+
+  const soft = renderToText(shim, shim.React.createElement(Notice, {
+    ...PANEL_PROPS,
+    store: createStore({ ...base, settings: { ...base.settings, alertStrong: { blue: false, yellow: false, orange: false, red: false } } })
+  }));
+  assert.ok(!soft.includes('notice.strong'), 'no bar when the level is not emphatic');
+});
+test('an empty primary list still shows the reference group', () => {
+  const other = {
+    ...ALERT_RAIN,
+    id: 'other:2',
+    scope: 'other',
+    title: '上海市崇明区气象台发布暴雨蓝色预警信号'
+  };
+  const { shim, component } = bootBundle({ WeatherPanel: ['zh', false, 'alerts'] });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [other] }))
+  }));
+
+  assert.ok(text.includes('当地暂无生效预警'), 'says the district itself has nothing');
+  assert.ok(text.includes('本市其他区县（参考）'), 'still shows the same-city reference group');
+});
+test('a preview alert shows even when its level is switched off', () => {
+  const preview = { ...ALERT_RAIN, id: 'demo:preview:yellow', preview: true, demo: true };
+  const { shim, component } = bootBundle({});
+  const Notice = component('shell.overlay');
+  const base = baseState({ alerts: [preview] });
+
+  const text = renderToText(shim, shim.React.createElement(Notice, {
+    ...PANEL_PROPS,
+    store: createStore({ ...base, settings: { ...base.settings, alertNotice: { blue: false, yellow: false, orange: false, red: false } } })
+  }));
+
+  assert.ok(text.includes(preview.title), 'the explicit preview is not filtered out');
 });

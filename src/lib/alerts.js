@@ -10,17 +10,27 @@
  * 因此「类型/等级」从标题解析比额外请求详情页可靠：详情页 `publish/alarm/*.html` 不带 CORS。
  */
 
+import { alertGuide } from './alert-guides.js';
+
 export const ALARM_ENDPOINT = 'https://www.nmc.cn/rest/findAlarm';
 export const ALARM_PAGE_SIZE = 100;
-export const ALARM_MAX_PAGES = 3;
+export const ALARM_MAX_PAGES = 5;
 
-/** 等级从低到高；rank 用于排序与「最高等级」判断。 */
+/**
+ * 等级从低到高；rank 用于排序与「最高等级」判断。
+ * grade / severity 采自官方发布口径（Ⅳ级一般、Ⅲ级较重、Ⅱ级严重、Ⅰ级特别严重），
+ * color 只用于界面，不参与解析。
+ */
 export const ALERT_LEVELS = [
-  { key: 'blue', zh: '蓝色', en: 'Blue', rank: 1 },
-  { key: 'yellow', zh: '黄色', en: 'Yellow', rank: 2 },
-  { key: 'orange', zh: '橙色', en: 'Orange', rank: 3 },
-  { key: 'red', zh: '红色', en: 'Red', rank: 4 }
+  { key: 'blue', zh: '蓝色', en: 'Blue', rank: 1, grade: 'Ⅳ级', gradeEn: 'Grade IV', severity: '一般', severityEn: 'general', color: '#3b82f6' },
+  { key: 'yellow', zh: '黄色', en: 'Yellow', rank: 2, grade: 'Ⅲ级', gradeEn: 'Grade III', severity: '较重', severityEn: 'fairly serious', color: '#eab308' },
+  { key: 'orange', zh: '橙色', en: 'Orange', rank: 3, grade: 'Ⅱ级', gradeEn: 'Grade II', severity: '严重', severityEn: 'serious', color: '#f97316' },
+  { key: 'red', zh: '红色', en: 'Red', rank: 4, grade: 'Ⅰ级', gradeEn: 'Grade I', severity: '特别严重', severityEn: 'especially serious', color: '#dc2626' }
 ];
+
+/** 设置里每个等级的两项开关默认值。 */
+export const DEFAULT_ALERT_NOTICE = { blue: false, yellow: true, orange: true, red: true };
+export const DEFAULT_ALERT_STRONG = { blue: false, yellow: false, orange: true, red: true };
 
 /** 常见预警类型；只用于中英互译与顺序，不限制解析。 */
 export const ALERT_TYPES = [
@@ -183,31 +193,175 @@ export function placeRoots(name) {
 }
 
 /**
- * Keep the alerts that plausibly cover this place.
+ * Place names to look for in an alert title, most precise first.
  *
- * City-level hits win; when a city has none, province-level signals are kept but
- * marked `scope: 'region'` so the UI can say they are regional.
+ * 区/县（district）> 市（city）> 省（region）：NMC 的标题写的是**发布台站**的全称
+ * 路径（例如「浙江省舟山市岱山县气象台」），所以区县名能命中就说明这条预警
+ * 精确到这个区县；只命中省名时降级为「省级区域预警」。
+ */
+export function locationPlaces(location) {
+  if (!location) return [];
+  const places = [];
+  const push = (value, scope, weight) => {
+    for (const root of placeRoots(value)) {
+      if (!places.some(item => item.root === root && item.weight >= weight)) {
+        places.push({ root, scope, weight });
+      }
+    }
+  };
+  push(location.district, 'district', 4);
+  push(location.city, 'city', 3);
+  // A manual pick stores `label` as "城市 · 省/州"; both halves are worth matching.
+  if (location.label) {
+    String(location.label).split(/[·,，\/]/).map(part => part.trim()).filter(Boolean)
+      .forEach(part => push(part, 'city', 2));
+  }
+  push(location.region, 'region', 1);
+  return places;
+}
+
+/** The issuing station, i.e. the part before 发布 / 气象台 in a title. */
+export function alertStation(title) {
+  const text = String(title || '');
+  const cut = text.indexOf('气象台');
+  return cut > 0 ? text.slice(0, cut) : '';
+}
+
+const SCOPE_ORDER = { district: 0, city: 1, region: 2, other: 3 };
+
+/**
+ * Which administrative level one alert actually speaks for.
+ *
+ * NMC titles name the issuing station in full (`浙江省舟山市岱山县气象台`), so the
+ * station string tells us the granularity:
+ *   - it contains the user's own district/county → `district` (exactly this place)
+ *   - it ends at the user's city (`…市气象台`)  → `city` (the whole city)
+ *   - it names a *different* district of the same city → `other`, dropped when we
+ *     know the user's district, because a 崇明区 warning is not a 徐汇区 warning
+ *   - only the province matches                 → `region`
+ */
+export function alertScopeFor(title, location) {
+  const station = alertStation(title);
+  if (!station || !location) return null;
+  const districtRoots = placeRoots(location.district);
+  const cityRoots = placeRoots(location.city);
+  const regionRoots = placeRoots(location.region);
+  for (const root of districtRoots) {
+    if (station.includes(root)) return { scope: 'district', weight: 5, matchedOn: root };
+  }
+  for (const root of cityRoots) {
+    if (station.endsWith(root)) return { scope: 'city', weight: 4, matchedOn: root };
+  }
+  const cityHit = cityRoots.find(root => station.includes(root));
+  if (cityHit) {
+    // Same city, another district: informational only when we know the district.
+    return location.district
+      ? { scope: 'other', weight: 1, matchedOn: cityHit }
+      : { scope: 'city', weight: 2, matchedOn: cityHit };
+  }
+  // A province-level hit must be the province itself (省气象台 / 省自然资源厅 …),
+  // not another city's station that merely sits inside the same province.
+  const provinceDept = /(气象台|厅|局|中心)$/.test(station);
+  for (const root of regionRoots) {
+    if (!station.includes(root)) continue;
+    if (station.endsWith(root) || provinceDept) return { scope: 'region', weight: 3, matchedOn: root };
+  }
+  // Somewhere else entirely: not this place's warning at all.
+  return null;
+}
+
+/**
+ * Keep the alerts that cover this place, most precise first.
+ *
+ * `scope: 'other'` rows are the same city's *other* districts: they stay in the
+ * list (the tab shows them as a separate "参考" group) but never raise a notice,
+ * because a 崇明区 warning is not a 徐汇区 warning.
  */
 export function matchAlerts(alerts, location) {
   if (!Array.isArray(alerts) || alerts.length === 0) return [];
-  const cityRoots = placeRoots(location && location.city);
-  const regionRoots = placeRoots(location && location.region);
   const matched = [];
   for (const alert of alerts) {
-    const title = alert.title;
-    const cityHit = cityRoots.some(root => title.includes(root));
-    if (cityHit) {
-      matched.push({ ...alert, scope: 'city' });
-      continue;
-    }
-    const regionHit = regionRoots.some(root => title.includes(root));
-    if (regionHit) matched.push({ ...alert, scope: 'region' });
+    const scope = alertScopeFor(alert.title, location);
+    if (!scope) continue;
+    matched.push({ ...alert, scope: scope.scope, matchedOn: scope.matchedOn });
   }
   return matched.sort((left, right) => {
-    if (left.scope !== right.scope) return left.scope === 'city' ? -1 : 1;
+    const leftScope = SCOPE_ORDER[left.scope] === undefined ? 9 : SCOPE_ORDER[left.scope];
+    const rightScope = SCOPE_ORDER[right.scope] === undefined ? 9 : SCOPE_ORDER[right.scope];
+    if (leftScope !== rightScope) return leftScope - rightScope;
     if (left.levelRank !== right.levelRank) return right.levelRank - left.levelRank;
     return (right.issuedAt || 0) - (left.issuedAt || 0);
   });
+}
+
+/** Level colour, shared by the list, the chips and the notice. */
+export function alertLevelColor(level) {
+  const meta = alertLevelMeta(level);
+  return meta ? meta.color : '#6b7280';
+}
+
+/** `Ⅲ级 · 较重` / `Grade III · fairly serious`. */
+export function alertGradeLabel(level, lang) {
+  const meta = alertLevelMeta(level);
+  if (!meta) return '';
+  if (lang === 'en') return `${meta.gradeEn} · ${meta.severityEn}`;
+  return `${meta.grade} · ${meta.severity}`;
+}
+
+/**
+ * Drop the alerts whose level the user switched off.
+ *
+ * `levels` is the settings map `{blue, yellow, orange, red}`; a level missing
+ * from the map (an unknown upstream level) never raises a notice.
+ */
+export function filterAlertsByLevels(alerts, levels) {
+  if (!Array.isArray(alerts) || alerts.length === 0) return [];
+  const map = levels || {};
+  return alerts.filter(alert => map[alert.level] === true);
+}
+
+/** Counts per level, for the header summary. */
+export function alertCountsByLevel(alerts) {
+  const counts = { blue: 0, yellow: 0, orange: 0, red: 0 };
+  if (Array.isArray(alerts)) {
+    for (const alert of alerts) {
+      if (counts[alert.level] !== undefined) counts[alert.level] += 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * Everything the detail panel shows for one alert.
+ *
+ * The description is a structured summary (who issued what, when, how serious)
+ * plus the type's general guidance; the authoritative local wording lives on the
+ * linked official page, which is why `url` is always part of the result.
+ */
+export function buildAlertDetail(alert, lang) {
+  if (!alert) return null;
+  const key = lang === 'en' ? 'en' : 'zh';
+  const guide = alertGuide(alert.type)[key] || {};
+  const meta = alertLevelMeta(alert.level);
+  const levelLabel = lang === 'en' ? (alert.levelEn || '') : (alert.levelZh || '');
+  const typeLabel = lang === 'en' ? (alert.typeEn || alert.type || '') : (alert.type || '');
+  return {
+    id: alert.id,
+    title: alert.title,
+    type: typeLabel,
+    level: levelLabel,
+    levelKey: alert.level || 'blue',
+    color: meta ? meta.color : '#6b7280',
+    grade: meta ? (lang === 'en' ? meta.gradeEn : meta.grade) : '',
+    severity: meta ? (lang === 'en' ? meta.severityEn : meta.severity) : '',
+    issuedText: alert.issuedText || '',
+    issuedAt: alert.issuedAt || null,
+    place: alert.place || '',
+    scope: alert.scope || 'city',
+    summary: guide.summary || '',
+    bullets: Array.isArray(guide.bullets) ? guide.bullets : [],
+    url: alert.url || 'https://www.nmc.cn/publish/alarm.html'
+  };
 }
 
 /** Highest active level among the matched alerts (0 when none). */
