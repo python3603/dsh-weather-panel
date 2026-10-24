@@ -685,8 +685,9 @@ export function createWeatherStore() {
       const override = normalizeOverride({
         lat: city.lat,
         lon: city.lon,
-        label: [city.name, city.region].filter(Boolean).join(' · '),
-        city: city.name,
+        label: [city.name, city.subtitle || city.region].filter(Boolean).join(' · '),
+        // 命中区县时 city 是它所属的地级市，district 才是区县名。
+        city: city.city || city.name,
         district: city.district || '',
         region: city.region,
         source: 'manual'

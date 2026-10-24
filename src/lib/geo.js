@@ -11,6 +11,8 @@
  *   keeps every branch unit-testable.
  */
 
+import { looksLikeDistrict, searchDistricts } from './districts.js';
+
 const GEO_LOOKUP_TIMEOUT_MS = 6000;
 const GEO_REQUEST_TIMEOUT_MS = 5000;
 const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
@@ -221,14 +223,31 @@ export function normalizeCityHit(raw) {
   if (lat === null || lon === null) return null;
   const name = cleanName(raw.name);
   if (!name) return null;
+  // Open-Meteo 的 admin2 对中国来说通常是地级市，而 name 才可能是区县名；
+  // 之前的版本直接把 admin2 当 district，会让「选城市」被误判成「选了某个区」。
+  const admin2 = cleanName(raw.admin2);
+  const nameIsDistrict = looksLikeDistrict(name);
+  const admin2IsDistrict = looksLikeDistrict(admin2);
+  let cityName = admin2 || name;
+  let district = '';
+  if (nameIsDistrict && admin2 && !admin2IsDistrict) {
+    cityName = admin2;
+    district = name;
+  } else if (admin2IsDistrict && name !== admin2) {
+    cityName = name;
+    district = admin2;
+  }
   return {
     id: raw.id,
     name,
     region: cleanName(raw.admin1),
-    district: cleanName(raw.admin2),
+    subtitle: [cleanName(raw.admin1), cleanName(raw.country)].filter(Boolean).join(' · '),
+    city: cityName,
+    district,
     country: cleanName(raw.country),
     countryCode: cleanName(raw.country_code).toUpperCase(),
     featureCode: cleanName(raw.feature_code),
+    source: 'geocoding',
     lat,
     lon
   };
@@ -277,6 +296,9 @@ export async function searchCities(fetchJson, query, options) {
   if (!text) return [];
   const language = settings.language === 'en' ? 'en' : 'zh';
   const limit = Number.isFinite(settings.limit) ? settings.limit : 6;
+  // 本地区县索引先出结果（不联网、无延迟），覆盖 Open-Meteo 搜不到的区县名。
+  const local = searchDistricts(text, { lang: language, limit });
+
   const variants = [text];
   if (/[\u4e00-\u9fa5]/.test(text) && !/[市县区州盟旗]$/.test(text)) variants.push(`${text}市`);
 
@@ -297,8 +319,21 @@ export async function searchCities(fetchJson, query, options) {
     });
   });
 
-  return Array.from(byId.values())
+  const remote = Array.from(byId.values())
     .map(hit => ({ ...hit, score: scoreCityHit(hit, text) }))
-    .sort((left, right) => right.score - left.score)
-    .slice(0, limit);
+    .sort((left, right) => right.score - left.score);
+
+  // 本地索引在前（区县精确），网络结果补位；同名同坐标只留一条。
+  const merged = [];
+  const seen = new Set();
+  const push = hit => {
+    if (!hit) return;
+    const key = `${hit.name}|${Number(hit.lat).toFixed(1)}|${Number(hit.lon).toFixed(1)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(hit);
+  };
+  local.forEach(push);
+  remote.forEach(push);
+  return merged.slice(0, limit);
 }

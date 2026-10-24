@@ -287,7 +287,8 @@ function LocationPicker(props) {
         },
           h('span', { className: 'dshw-result-name' }, city.name),
           h('span', { className: 'dshw-result-meta' },
-            [city.region, city.country].filter(Boolean).join(' · ') || (lang === 'en' ? 'Unknown region' : '未知地区')
+            [city.subtitle || city.region, city.country].filter(Boolean).join(' · ') || (lang === 'en' ? 'Unknown region' : '未知地区'),
+            city.featureCode === 'ADM3' ? h('span', { className: 'dshw-result-tag' }, t('location.districtTag')) : null
           )
         ))
       )

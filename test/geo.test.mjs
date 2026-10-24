@@ -157,10 +157,24 @@ test('searchCities merges the 市 variant and ranks the settlement first', async
 
   const cities = await searchCities(fetchJson, '青岛', { language: 'zh' });
   assert.deepEqual(queries.sort(), ['青岛', '青岛市'].sort());
-  assert.equal(cities.length, 2);
+  // 内置索引先给结果（含正确的省/市归属），网络结果补位。
   assert.equal(cities[0].name, '青岛市');
-  assert.equal(cities[0].region, '山东');
-  assert.equal(cities[0].lat, 36.06);
+  assert.equal(cities[0].source, 'district');
+  assert.equal(cities[0].region, '山东省');
+  const remote = cities.find(hit => hit.id === 2);
+  assert.ok(remote, 'the Open-Meteo hit is still merged in');
+  assert.equal(remote.region, '山东');
+});
+
+test('a district query resolves offline and keeps the parent city', async () => {
+  const offline = () => Promise.reject(new Error('offline'));
+  const cities = await searchCities(offline, '徐汇区', { language: 'zh' });
+  assert.equal(cities[0].name, '徐汇区');
+  assert.equal(cities[0].city, '上海市');
+  assert.equal(cities[0].district, '徐汇区');
+  assert.equal(cities[0].region, '上海市');
+  assert.equal(cities[0].featureCode, 'ADM3');
+  assert.ok(Math.abs(cities[0].lat - 31.2) < 1 && Math.abs(cities[0].lon - 121.4) < 1);
 });
 
 test('searchCities returns [] for a blank query and tolerates failures', async () => {

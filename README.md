@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-135%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-142%20passing-brightgreen?style=flat-square"/>
   <img alt="Platform" src="https://img.shields.io/badge/surface-Web%20UI-8b5cf6?style=flat-square"/>
 </p>
 
@@ -54,7 +54,7 @@
 | 分级提醒 | 蓝/黄/橙/红**每级独立开关**提醒；再单独标记「**加强**」，被标记的等级弹窗会换成该等级的配色、加顶部警示条与脉冲圆点 |
 | 台风路径 | 活跃台风或最近一次：离线海岸线底图、轨迹、预报路径、强度配色、**带等级标注的风圈（7 / 10 / 12 级）**；可点选轨迹点看当时气压/风速/移动，一键「回到当前时刻」；**中央气象台无活跃台风时显示「近期无活跃台风」并可查看最近一次** |
 | 启动提醒 | 打开 DSH 后，若今日有降水或达到你设定等级的预警则弹窗（需确认）；当天已确认不再打扰，出现新预警会再次提醒；可在「预警 → 提醒设置」里按等级开关与加强 |
-| 位置 | **网络定位（公网 IP）/ 系统定位（浏览器高精度，持久生效）二选一**，随时切回；也可手动搜索城市；副标题标明来源、IP 与精度 |
+| 位置 | **网络定位（公网 IP）/ 系统定位（浏览器高精度，持久生效）二选一**，随时切回；手动搜索支持**精确到区县**（内置 2895 个区县索引，「徐汇区」「浦东新区」都能直接搜到，离线可用）；副标题标明来源、IP 与精度 |
 | 代理提示 | 出口 IP 不在中国大陆时，顶部提示「可能开了代理/VPN，请手动切换城市」 |
 | 雷达 | **官方雷达拼图**：全国 + 华北/东北/华东/华中/华南/西南/西北，与 nmc.cn 相同的产品划分；时次滑杆 + 播放动画，图片直连 `image.nmc.cn` |
 | 历史气温 | 天气页底部：**近 7 天 / 近 30 天**（默认 7 天）日最高、最低与平均气温折线，带温度带与极值标注（不是 K 线） |
@@ -152,6 +152,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 | 雷达 | **中央气象台雷达拼图** `image.nmc.cn` | 官方产品图（PNG），按官方 6 分钟时次规则取帧；图片加载不需要 CORS |
 | 卫星云图 | **国家卫星气象中心** `img.nsmc.org.cn` | 产品清单 XML（实测 CORS `*`）逐帧列出官方 JPG；覆盖 FY-4B / FY-2G / 静止卫星全球拼图 |
 
+| 区县索引 | **GeoNames** `download.geonames.org`（CC BY 4.0） | 中国 ADM1/ADM2/ADM3 的行政中心点，构建期生成、随包内置，运行时**不联网** |
 | 历史气温 | Open-Meteo `past_days` | 逐日最高 / 最低 / 平均；`forecast_days=0` 只回完整日（截至昨天） |
 | 专业图 | **easterlywave.com** 社区站点 | 海表温度按日；ECMWF 图按 `00Z/12Z` 起报 + 24h 步长。该站 JSON 接口需 cookie + CSRF 且无 CORS，**这里只取静态产品图**，并保留官方页面链接 |
 
@@ -195,7 +196,9 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 │   │   ├── wmo.js        # WMO 4677 → 文案/图标组/严重度
 │   │   ├── format.js     # 温度/风/气压/降水/方位/时间/星期
 │   │   ├── cache.js      # TTL 缓存 + 安全 Storage
-│   │   ├── geo.js        # IP 定位竞速、逆地理、城市搜索
+│   │   ├── geo.js        # IP 定位竞速、逆地理、城市搜索（合并区县索引）
+│   │   ├── districts.js  # 区县级搜索：别名、去后缀、打分
+│   │   ├── districts-data.js # 内置行政区索引（构建期生成，99 KiB）
 │   │   ├── weather.js    # Open-Meteo 请求构造与归一化
 │   │   ├── alerts.js     # 中央气象台预警解析、台站层级匹配、签名
 │   │   ├── alert-guides.js # 各类型预警的防范要点（详情面板用）
@@ -258,7 +261,7 @@ npm run check     # 三连
 
 ## 已知限制
 
-- IP 定位只到城市级，且可能落在运营商或代理出口；面板会显示来源与 IP，并用顶部提示建议手动切换。
+- IP 定位只到城市级，且可能落在运营商或代理出口；面板会显示来源与 IP，并用顶部提示建议手动切换（手动搜索可精确到区县）。
 - 预警来自全国实时流并按标题匹配：**本区/县 → 本市 → 本省**。NMC 标题只写发布台站的全称，所以「本市有多个区、但你没设到区」时，同城各区的预警会并列为市级；同市其他区县的预警放在「参考」组里，不弹窗。
 - 台风底图为离线陆地轮廓（Natural Earth 1:50m，公有领域，仅陆地、不画国界）：无需 Key、不受 CORS/额度限制、可离线使用；代价是没有地名与行政区划，海岸线在 1:50m 粒度下约有 1–2 km 概化误差。
 - 启动提醒在页面打开/刷新时判断，并每 10 分钟轮询以兜底新预警。
@@ -267,6 +270,7 @@ npm run check     # 三连
 - 卫星云图只接国内官方源（国家卫星气象中心）：清单 XML 与产品图都直连 `img.nsmc.org.cn`（实测 CORS 允许读取清单），影像按官方节奏更新（FY-4B 每 15 分钟、FY-2 每 30 分钟）。
 - 历史气温取的是 Open-Meteo 的逐日统计，`forecast_days=0` 不返回今天，所以曲线截止到**昨天**（完整日）。
 - 专业栏的图来自社区站点 easterlywave.com：API 有 CORS + CSRF 限制，只能按命名规则直连静态图，因此**新起报时次的出图会滞后**（ECMWF 每天 00Z/12Z 两次，海温按日）；若图片缺失会自动回退到上一时次，仍缺则提示。
+- 区县索引是 GeoNames 的快照：个别后来更名/撤并的区县没有新名字（如两江新区），代码里补了常用别名（两江新区 → 渝北区），其余以索引里的现行名为准。
 - `°F` 只影响显示，请求始终使用公制。
 
 <div align="center">

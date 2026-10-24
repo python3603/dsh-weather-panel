@@ -32,6 +32,8 @@ const MODULES = [
   'src/lib/alert-guides.js',
   'src/lib/alerts.js',
   'src/lib/typhoon.js',
+  'src/lib/districts-data.js',
+  'src/lib/districts.js',
   'src/lib/geo.js',
   'src/lib/weather.js',
   'src/lib/history.js',

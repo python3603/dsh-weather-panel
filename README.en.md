@@ -11,7 +11,7 @@
   <a href="https://www.npmjs.com/package/dsh-weather-panel"><img alt="npm" src="https://img.shields.io/npm/v/dsh-weather-panel?style=flat-square&color=cb3837&logo=npm&logoColor=white"/></a>
   <a href="https://github.com/deepseek-ai"><img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.x-38bdf8?style=flat-square"/></a>
   <img alt="No API key" src="https://img.shields.io/badge/API%20key-not%20required-10b981?style=flat-square"/>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-135%20passing-brightgreen?style=flat-square"/>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-142%20passing-brightgreen?style=flat-square"/>
 </p>
 
 <div align="center">
@@ -60,7 +60,7 @@ the startup notice; caches are written to `localStorage`.
 | Level policy | Blue/yellow/orange/red each raise a notice or not, and each can be marked **emphatic** — that level then paints the dialog in its own colour, with a warning bar and a pulsing dot |
 | Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
 | Startup notice | Rain today, or a warning at a level you enabled, opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it. Levels and the emphatic style live in Alerts → Settings |
-| Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time, plus manual city search — source, IP and accuracy are always shown |
+| Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time; manual search goes down to **county/district level** (a bundled 2895-entry index, so "Xuhui" or "Pudong" resolves even offline) — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
 
@@ -146,6 +146,7 @@ To uninstall, disable or remove `dsh-weather-panel` on the Plugins page; your ch
 | Weather | [Open-Meteo](https://open-meteo.com/) | Keyless; **CC BY 4.0** |
 | Network location | [ipwho.is](https://ipwho.is/), [ipinfo.io](https://ipinfo.io/), [api.ip.sb](https://ip.sb/) | Raced concurrently; one failure cannot break the panel |
 | Reverse geocoding | [BigDataCloud](https://www.bigdatacloud.com/) | Coordinates → readable place name |
+| District index | **GeoNames** (CC BY 4.0) | China ADM1/ADM2/ADM3 administrative centres, generated at build time and bundled — no network at runtime |
 | City search | Open-Meteo Geocoding | Chinese queries also run a `市` variant and get re-ranked |
 | Alerts | CMA `www.nmc.cn/rest/findAlarm` | National active-alert feed; details are a built-in summary plus the official page link because the detail page sends no CORS header (CORS `*`) |
 | Typhoons | CMA typhoon service `typhoon.nmc.cn` | JSONP; stripped and parsed in the browser |
@@ -184,7 +185,8 @@ index.js                Host half: intentionally empty
 client.js               built artifact (npm run build)
 docs/assets/            README artwork (original SVG) and stickers
 docs/screenshots/       real UI screenshots
-src/lib/                pure logic: i18n, links, wmo, format, cache, geo, radar,
+src/lib/                pure logic: i18n, links, wmo, format, cache, geo, districts,
+                        districts-data, radar,
                         weather, alerts, alert-guides, typhoon, notice-core, store
 src/ui/                 styles, icons, chart, history-chart, basemap-data,
                         typhoon-view, radar-view, satellite-view, pro-chart-view,
@@ -234,6 +236,7 @@ localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // ful
 - The notice is evaluated at page load and every 10 minutes afterwards.
 - Device location depends on browser permission; a denial falls back to the network with a hint.
 - Radar frames are generated from the official 6-minute cadence: the nmc.cn frame list serves no CORS headers, so a missing frame is detected by the image request failing and the view falls back to the previous one (the newest frame usually lags by 1-2).
+- The district index is a GeoNames snapshot: a few renamed or merged districts keep their old names, with a small alias table for the common ones (e.g. Liangjiang New Area → Yubei).
 - `°F` only affects display; requests are always metric.
 
 ## Feedback
