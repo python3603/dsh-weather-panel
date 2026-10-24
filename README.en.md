@@ -116,6 +116,7 @@ This plugin is listed on [Awesome DSH Plugin](https://awesome-dsh-plugin.com) an
 1. Open **Settings → Plugins → Discover** and add this index source:
    `https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json`
    (mirrors: `https://awesome-dsh-plugin.com/index.json`, `https://dshmarket.com/index.json`)
+   > If the jsDelivr index does not show this plugin yet, that copy is a snapshot of the `dsh-plugin-catalog` npm package and only updates when it is republished; the `awesome-dsh-plugin.com` source usually has it already.
 2. Search for `dsh-weather-panel` and install.
 3. For a nicer market (one-click upgrades, theme switching) you can also add dsh-market:
 

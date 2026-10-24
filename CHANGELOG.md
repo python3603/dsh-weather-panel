@@ -2,6 +2,11 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.6.1] - 2026-10-24
+
+### 文档
+- 安装步骤补一句：jsDelivr 的 `dsh-plugin-catalog` 索引是 npm 快照，收录/版本更新有延迟；若在它里面搜不到本插件，换成 `https://awesome-dsh-plugin.com/index.json` 索引源即可。
+- 无代码变更（1.6.0 的功能完全相同），仅同步 README 到 npm。
 ## [1.6.0] - 2026-10-24
 
 预警改版：独立预警页、分级提醒、可展开详情、按台站层级匹配、按当前定位预览。

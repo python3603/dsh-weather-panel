@@ -115,6 +115,7 @@
 1. 打开 **设置 → 插件 → 发现**（Discover），在「索引源」里添加：
    `https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json`
    （备用：`https://awesome-dsh-plugin.com/index.json`、`https://dshmarket.com/index.json`）
+   > 若在 jsDelivr 的索引里搜不到本插件：那个索引是 `dsh-plugin-catalog` 的 npm 快照，收录后要等它重新发布；换成 `https://awesome-dsh-plugin.com/index.json` 通常就能看到。
 2. 搜 `dsh-weather-panel`，点安装。
 3. 想要更好的市场体验（一键升级、主题切换），可以再装 dsh-market：
 
