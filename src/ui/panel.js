@@ -516,6 +516,14 @@ function WeatherPanel(props) {
         })
         : null,
 
+      state.locationWarning === 'gps-coarse'
+        ? h('div', { className: 'dshw-hint', role: 'note' },
+          h('span', { className: 'dshw-hint-text' }, translate('location.gpsCoarse', { accuracy: Math.round(Number(state.location && state.location.accuracy) || 0) })),
+          h('button', { type: 'button', className: 'dshw-btn', onClick: () => store.setPreciseLocation(true) }, translate('location.gpsRetry')),
+          h('button', { type: 'button', className: 'dshw-btn', onClick: () => store.clearOverride() }, translate('location.useNetwork'))
+        )
+        : null,
+
       state.locationWarning === 'gps-fallback'
         ? h('div', { className: 'dshw-hint', role: 'note' },
           h('span', { className: 'dshw-hint-text' }, translate('location.gpsFallback')),

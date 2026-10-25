@@ -714,3 +714,14 @@ test('a preview alert shows even when its level is switched off', () => {
 
   assert.ok(text.includes(preview.title), 'the explicit preview is not filtered out');
 });
+test('a coarse device fix shows the accuracy warning with two actions', () => {
+  const { shim, component } = bootBundle({});
+  const Panel = component('main');
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ locationWarning: 'gps-coarse', location: { ...baseState({}).location, accuracy: 20000 } }))
+  }));
+  for (const label of ['系统定位精度约', '重新定位', '改用网络定位']) {
+    assert.ok(text.includes(label), `renders ${label}`);
+  }
+});

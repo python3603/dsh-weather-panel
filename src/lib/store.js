@@ -301,21 +301,107 @@ function fetchRaw(url, options) {
 }
 
 /** Ask the browser for device location. */
+/** A fix this good is all we need; stop sampling early. */
+export const GEOHASH_GOOD_ACCURACY_M = 300;
+/** Keep sampling this long for a better fix before settling for the best one. */
+const GEO_SETTLE_MS = 4000;
+/** Hard budget for the whole acquisition. */
+const GEO_HARD_TIMEOUT_MS = 15000;
+
+/**
+ * Ask the device for its position, preferring accuracy.
+ *
+ * Why not one `getCurrentPosition` call: with `enableHighAccuracy: false` (the
+ * previous behaviour) the browser answers from its network cache — on this
+ * machine that is a ~20 km radius, which reverse-geocodes to the wrong district
+ * and therefore to the wrong alerts. High accuracy is requested, fresh (no
+ * cached age), and `watchPosition` keeps sampling for a few seconds so a
+ * Wi-Fi/网络 first fix can be improved by a GPS one.
+ */
+/**
+ * A fix worse than this can land in the neighbouring district, so the UI warns.
+ */
+export const GPS_COARSE_ACCURACY_M = 3000;
+
+/** Warning code for a coarse fix; `''` when the accuracy is usable. */
+/**
+ * When the fix is coarse, drop the district: a 20 km fix reverse-geocodes to
+ * whatever district the error happens to land in, and claiming it is how a
+ * Qingdao user ended up looking at the wrong district's weather and alerts.
+ * Matching then falls back to the city, which a coarse fix can still support.
+ */
+export function applyGpsAccuracy(described, accuracy) {
+  if (!described || gpsAccuracyWarning(accuracy) !== 'gps-coarse') return described;
+  const label = [described.city, described.region].filter(Boolean).join(' · ');
+  return { ...described, district: '', label: label || described.label };
+}
+
+export function gpsAccuracyWarning(accuracy) {
+  return isNumber(accuracy) && accuracy > GPS_COARSE_ACCURACY_M ? 'gps-coarse' : '';
+}
+
 export function requestDevicePosition() {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new Error('unsupported'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      position => resolve({
+    let best = null;
+    let watchId = null;
+    let settleTimer = null;
+    let hardTimer = null;
+    let done = false;
+
+    const cleanup = () => {
+      if (watchId !== null && typeof navigator.geolocation.clearWatch === 'function') {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      watchId = null;
+      clearTimeout(settleTimer);
+      settleTimer = null;
+      clearTimeout(hardTimer);
+      hardTimer = null;
+    };
+
+    const settle = error => {
+      if (done) return;
+      done = true;
+      cleanup();
+      if (best) resolve(best);
+      else reject(error || new Error('unavailable'));
+    };
+
+    const onPosition = position => {
+      const accuracy = Number(position.coords.accuracy);
+      const fix = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
-        accuracy: position.coords.accuracy
-      }),
-      error => reject(error),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
-    );
+        accuracy: Number.isFinite(accuracy) ? accuracy : null
+      };
+      if (!best || (fix.accuracy !== null && (best.accuracy === null || fix.accuracy < best.accuracy))) {
+        best = fix;
+      }
+      if (best.accuracy !== null && best.accuracy <= GEOHASH_GOOD_ACCURACY_M) {
+        settle(null);
+        return;
+      }
+      if (!settleTimer) settleTimer = setTimeout(() => settle(null), GEO_SETTLE_MS);
+    };
+
+    const onError = error => {
+      if (!best) settle(error);
+    };
+
+    hardTimer = setTimeout(() => settle(null), GEO_HARD_TIMEOUT_MS);
+    try {
+      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+        enableHighAccuracy: true,
+        timeout: GEO_HARD_TIMEOUT_MS,
+        maximumAge: 0
+      });
+    } catch (error) {
+      settle(error);
+    }
   });
 }
 
@@ -380,13 +466,11 @@ async function resolveLocation(settings, signal, lang) {
         signal,
         lang
       );
+      const accuracy = isNumber(position.accuracy) ? Math.round(position.accuracy) : null;
       return {
-        location: {
-          ...described,
-          source: 'gps',
-          accuracy: isNumber(position.accuracy) ? Math.round(position.accuracy) : null
-        },
-        warning: ''
+        location: { ...applyGpsAccuracy(described, accuracy), source: 'gps', accuracy },
+        // 3 km 以内足够定位到区；更粗的定位会落到邻区，值得单独提示。
+        warning: gpsAccuracyWarning(accuracy)
       };
     } catch (error) {
       // Permission denied, no hardware, or a timeout: keep going with the IP.

@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import {
   PANEL_ID,
+  GPS_COARSE_ACCURACY_M,
+  applyGpsAccuracy,
+  gpsAccuracyWarning,
+  requestDevicePosition,
   buildDemoAlert,
   demoAlertKinds,
   readDemoAlertKind,
@@ -134,4 +138,51 @@ test('a preview alert is built for the current location', () => {
   // The legacy presets keep working (the settings shortcut still uses them).
   assert.equal(buildDemoAlert('typhoon-red', now, location).level, 'red');
   assert.equal(buildDemoAlert('nonsense', now, location), null);
+});
+test('a coarse fix is flagged for the UI', () => {
+  assert.equal(GPS_COARSE_ACCURACY_M, 3000);
+  assert.equal(gpsAccuracyWarning(120), '');
+  assert.equal(gpsAccuracyWarning(3000), '');
+  assert.equal(gpsAccuracyWarning(20000), 'gps-coarse');
+  assert.equal(gpsAccuracyWarning(null), '');
+});
+
+test('device position resolves from the best watchPosition sample', async () => {
+  const samples = [
+    { coords: { latitude: 36.1, longitude: 120.4, accuracy: 20000 } },
+    { coords: { latitude: 36.06, longitude: 120.38, accuracy: 25 } }
+  ];
+  let cleared = 0;
+  const fake = {
+    geolocation: {
+      watchPosition(onPosition) {
+        setTimeout(() => samples.forEach(sample => onPosition(sample)), 0);
+        return 7;
+      },
+      clearWatch() { cleared += 1; }
+    }
+  };
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: fake, configurable: true });
+  try {
+    const fix = await requestDevicePosition();
+    assert.deepEqual(fix, { lat: 36.06, lon: 120.38, accuracy: 25 }, 'the accurate sample wins');
+    assert.ok(cleared >= 1, 'the watch is cleared once a good fix arrives');
+  } finally {
+    Object.defineProperty(globalThis, 'navigator', descriptor);
+  }
+});
+test('a coarse gps fix degrades to city level instead of a wrong district', () => {
+  const described = {
+    lat: 36.06, lon: 120.38, city: '青岛市', district: '市南区', region: '山东省',
+    label: '青岛市 · 市南区', source: 'gps'
+  };
+  const precise = applyGpsAccuracy(described, 40);
+  assert.equal(precise.district, '市南区', 'a precise fix keeps the district');
+  assert.equal(precise.label, '青岛市 · 市南区');
+
+  const coarse = applyGpsAccuracy(described, 20000);
+  assert.equal(coarse.district, '', 'a 20 km fix must not claim a district');
+  assert.equal(coarse.label, '青岛市 · 山东省');
+  assert.equal(coarse.city, '青岛市');
 });

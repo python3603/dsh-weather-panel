@@ -7,6 +7,9 @@ import {
   alertCountsByLevel,
   alertGradeLabel,
   alertLevelColor,
+  alertScopeFor,
+  matchesPlaceName,
+  stationProvinces,
   alertSignature,
   buildAlertDetail,
   filterAlertsByLevels,
@@ -200,4 +203,26 @@ test('a district hit outranks a city hit', () => {
   assert.equal(byId.county.scope, 'district', 'the county station is a district hit');
   assert.ok(!matched.some(item => item.scope === 'region'), 'neither falls back to the province');
   assert.equal(matched.length, 2);
+});
+test('a name only matches at an administrative boundary', () => {
+  const liaoning = '辽宁省葫芦岛市南票区气象台';
+  assert.equal(matchesPlaceName(liaoning, '市南'), false, '南 is not a new segment');
+  assert.equal(matchesPlaceName(liaoning, '市南区'), false);
+  assert.equal(matchesPlaceName('山东省青岛市市南区气象台', '市南'), true);
+  assert.equal(matchesPlaceName('山东省青岛市市南区气象台', '市南区'), true);
+  assert.equal(stationProvinces(liaoning).join(','), '辽宁省');
+});
+
+test('another province never matches, even when a district name repeats', () => {
+  const qingdao = { city: '青岛市', district: '市南区', region: '山东省' };
+  const niaoning = '辽宁省葫芦岛市南票区气象台发布寒潮蓝色预警信号';
+  assert.equal(alertScopeFor(niaoning, qingdao), null, 'this was the reported bug: 市南 inside 南票区');
+  assert.equal(
+    alertScopeFor('山东省青岛市市南区气象台发布寒潮蓝色预警信号', qingdao).scope,
+    'district'
+  );
+
+  const beijing = { city: '北京市', district: '朝阳区', region: '北京市' };
+  assert.equal(alertScopeFor('吉林省长春市朝阳区气象台发布大风蓝色预警信号', beijing), null);
+  assert.equal(alertScopeFor('北京市朝阳区气象台发布大风蓝色预警信号', beijing).scope, 'district');
 });

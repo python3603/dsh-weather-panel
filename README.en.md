@@ -253,9 +253,10 @@ localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // ful
 ## Known limits
 
 - Public-IP geolocation is city level and can land on a carrier or proxy exit.
-- Alerts come from a national feed matched by title, in three tiers: district, then city, then province. The feed names the issuing station, so with no district set a city shows all of its districts; other districts of the same city are listed for reference and never raise a notice.
+- Alerts come from a national feed matched by title, in three tiers: district, then city, then province. A district name must sit on an administrative boundary (「市南区」 no longer matches 「葫芦岛市南票区」), and a province gate drops stations from other provinces. The feed names the issuing station, so with no district set a city shows all of its districts; other districts of the same city are listed for reference and never raise a notice.
 - The typhoon basemap is an offline land mask (no place names, no borders); at 1:50m a coastline is
   generalised by about 1–2 km.
+- Device location asks for **high accuracy** (`watchPosition` with `enableHighAccuracy`, no cached fix), but the real precision is whatever the OS location service provides; **when it is worse than 3 km the panel degrades to city level** (no district shown, alerts matched by city) with a retry / switch-to-network hint.
 - The notice is evaluated at page load and every 10 minutes afterwards.
 - Device location depends on browser permission; a denial falls back to the network with a hint.
 - Radar frames are generated from the official 6-minute cadence: the nmc.cn frame list serves no CORS headers, so a missing frame is detected by the image request failing and the view falls back to the previous one (the newest frame usually lags by 1-2).

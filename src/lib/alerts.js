@@ -11,6 +11,7 @@
  */
 
 import { alertGuide } from './alert-guides.js';
+import { CN_PROVINCES } from './districts-data.js';
 
 export const ALARM_ENDPOINT = 'https://www.nmc.cn/rest/findAlarm';
 export const ALARM_PAGE_SIZE = 100;
@@ -240,19 +241,67 @@ const SCOPE_ORDER = { district: 0, city: 1, region: 2, other: 3 };
  *     know the user's district, because a 崇明区 warning is not a 徐汇区 warning
  *   - only the province matches                 → `region`
  */
+const ADMIN_CHAR = /[省市区县州盟旗]/;
+
+/**
+ * Does `word` appear in `text` as a whole administrative name?
+ *
+ * Plain `includes` is what produced a real mis-match: the station
+ * 「辽宁省葫芦岛市南票区气象台」 contains the two characters 「市南」, so a user in
+ * 青岛市市南区 saw a Liaoning cold-wave warning labelled 本区/县. A hit only
+ * counts when it starts at a segment boundary (string start or right after an
+ * 省/市/区/县/州/盟/旗, or after a list separator), and — when the word was
+ * stripped of its suffix — ends at one too.
+ */
+export function matchesPlaceName(text, word) {
+  const haystack = String(text || '');
+  const needle = String(word || '');
+  if (!haystack || !needle) return false;
+  const endsAdmin = ADMIN_CHAR.test(needle[needle.length - 1]);
+  let from = 0;
+  for (;;) {
+    const index = haystack.indexOf(needle, from);
+    if (index < 0) return false;
+    const before = index === 0 ? '' : haystack[index - 1];
+    const after = haystack[index + needle.length] || '';
+    const beforeOk = index === 0 || ADMIN_CHAR.test(before) || before === '、' || before === '，' || before === ',' || before === '(' || before === '（';
+    const afterOk = endsAdmin || after === '' || ADMIN_CHAR.test(after);
+    if (beforeOk && afterOk) return true;
+    from = index + 1;
+  }
+}
+
+/** Province names present in a station string (from the bundled index). */
+export function stationProvinces(station) {
+  const text = String(station || '');
+  return CN_PROVINCES.map(item => item[0]).filter(name => matchesPlaceName(text, name));
+}
+
+/** True when the station names a province different from the user's. */
+function foreignProvince(station, location) {
+  const regionRoots = placeRoots(location && location.region);
+  if (regionRoots.length === 0) return false;
+  const provinces = stationProvinces(station);
+  if (provinces.length === 0) return false;
+  const same = provinces.some(name => regionRoots.some(root => name.includes(root) || root.includes(name.replace(/[省市]$/, ''))));
+  return !same;
+}
+
 export function alertScopeFor(title, location) {
   const station = alertStation(title);
   if (!station || !location) return null;
+  // 省界优先：辽宁的台站绝不该匹配山东的用户，即使区县名恰好是别的省的区县名。
+  if (foreignProvince(station, location)) return null;
   const districtRoots = placeRoots(location.district);
   const cityRoots = placeRoots(location.city);
   const regionRoots = placeRoots(location.region);
   for (const root of districtRoots) {
-    if (station.includes(root)) return { scope: 'district', weight: 5, matchedOn: root };
+    if (matchesPlaceName(station, root)) return { scope: 'district', weight: 5, matchedOn: root };
   }
   for (const root of cityRoots) {
-    if (station.endsWith(root)) return { scope: 'city', weight: 4, matchedOn: root };
+    if (matchesPlaceName(station, root) && station.endsWith(root)) return { scope: 'city', weight: 4, matchedOn: root };
   }
-  const cityHit = cityRoots.find(root => station.includes(root));
+  const cityHit = cityRoots.find(root => matchesPlaceName(station, root));
   if (cityHit) {
     // Same city, another district: informational only when we know the district.
     return location.district
@@ -263,7 +312,7 @@ export function alertScopeFor(title, location) {
   // not another city's station that merely sits inside the same province.
   const provinceDept = /(气象台|厅|局|中心)$/.test(station);
   for (const root of regionRoots) {
-    if (!station.includes(root)) continue;
+    if (!matchesPlaceName(station, root)) continue;
     if (station.endsWith(root) || provinceDept) return { scope: 'region', weight: 3, matchedOn: root };
   }
   // Somewhere else entirely: not this place's warning at all.
