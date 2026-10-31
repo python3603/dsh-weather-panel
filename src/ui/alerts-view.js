@@ -92,10 +92,29 @@ function AlertLevelToggle(props) {
   );
 }
 
+/** A plain on/off switch used by the quiet-hours and daily-digest rows. */
+function SettingSwitch(props) {
+  const { on, label, onChange } = props;
+  return h('button', {
+    type: 'button',
+    role: 'switch',
+    'aria-checked': on ? 'true' : 'false',
+    className: `dshw-alert-toggle${on ? ' dshw-alert-toggle-on' : ''}`,
+    onClick: () => onChange(!on),
+    title: label
+  },
+    h('span', { className: 'dshw-alert-toggle-track', 'aria-hidden': 'true' },
+      h('span', { className: 'dshw-alert-toggle-knob' })
+    ),
+    h('span', { className: 'dshw-alert-toggle-label' }, label)
+  );
+}
+
 function AlertsView(props) {
   const {
     t, lang, alerts, scanned, settings, location, checkedAt,
-    onNoticeLevel, onStrongLevel, onPreview, onRefresh, busy
+    onNoticeLevel, onStrongLevel, onPreview, onRefresh, busy,
+    onQuietHours, onDailyReminder
   } = props;
   const [openId, setOpenId] = React.useState('');
   const [previewLevel, setPreviewLevel] = React.useState('yellow');
@@ -104,6 +123,8 @@ function AlertsView(props) {
   const list = Array.isArray(alerts) ? alerts : [];
   const noticeMap = (settings && settings.alertNotice) || DEFAULT_ALERT_NOTICE;
   const strongMap = (settings && settings.alertStrong) || DEFAULT_ALERT_STRONG;
+  const quiet = (settings && settings.quietHours) || { enabled: false, start: '23:00', end: '07:00' };
+  const dailyReminder = (settings && settings.dailyReminder) || { enabled: false, time: '08:00' };
   const placeLabel = location && location.label ? location.label : '';
   // 本区/本市 + 省级 = 真正对我的预警；同市其他区县另列一组，只作参考、不弹窗。
   const primary = list.filter(alert => alert.scope !== 'other');
@@ -158,6 +179,59 @@ function AlertsView(props) {
             })
           )
         )),
+        h('div', { className: 'dshw-alert-setting-row' },
+          h('span', { className: 'dshw-alert-setting-name' },
+            t('alerts.quietTitle'),
+            h('span', { className: 'dshw-note' }, t('alerts.quietHint'))
+          ),
+          h('div', { className: 'dshw-alert-setting-toggles dshw-time-row' },
+            h(SettingSwitch, {
+              on: quiet.enabled,
+              label: t('alerts.quietEnable'),
+              onChange: value => onQuietHours({ enabled: value })
+            }),
+            h('label', { className: 'dshw-time-field' },
+              h('span', null, t('alerts.quietFrom')),
+              h('input', {
+                type: 'time',
+                value: quiet.start,
+                onChange: event => onQuietHours({ start: event.target.value }),
+                'aria-label': t('alerts.quietFrom')
+              })
+            ),
+            h('label', { className: 'dshw-time-field' },
+              h('span', null, t('alerts.quietTo')),
+              h('input', {
+                type: 'time',
+                value: quiet.end,
+                onChange: event => onQuietHours({ end: event.target.value }),
+                'aria-label': t('alerts.quietTo')
+              })
+            )
+          )
+        ),
+        h('div', { className: 'dshw-alert-setting-row' },
+          h('span', { className: 'dshw-alert-setting-name' },
+            t('alerts.dailyTitle'),
+            h('span', { className: 'dshw-note' }, t('alerts.dailyHint'))
+          ),
+          h('div', { className: 'dshw-alert-setting-toggles dshw-time-row' },
+            h(SettingSwitch, {
+              on: dailyReminder.enabled,
+              label: t('alerts.dailyEnable'),
+              onChange: value => onDailyReminder({ enabled: value })
+            }),
+            h('label', { className: 'dshw-time-field' },
+              h('span', null, t('alerts.dailyTime')),
+              h('input', {
+                type: 'time',
+                value: dailyReminder.time,
+                onChange: event => onDailyReminder({ time: event.target.value }),
+                'aria-label': t('alerts.dailyTime')
+              })
+            )
+          )
+        ),
         h('div', { className: 'dshw-alert-preview' },
           h('div', { className: 'dshw-alert-preview-head' },
             h('span', { className: 'dshw-note' }, t('alerts.previewHint')),

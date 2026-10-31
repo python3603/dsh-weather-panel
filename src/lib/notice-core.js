@@ -1,16 +1,149 @@
 /**
  * Pure decision logic for the startup notice.
  *
- * Split out of the overlay component so the "should we interrupt the user?"
- * rule can be unit-tested: it encodes the two triggers (rain today, active
- * alerts) and the two dedupe levels (per-day acknowledgement, in-session
- * handling), and a wrong branch here either nags or stays silent when it
- * matters.
+ * The rain trigger is a **rolling window**, not a calendar day: "today has rain"
+ * is true at 08:00 even when the only rain fell at 02:00, which is why the old
+ * `summarizeToday` nagged about weather that had already passed. The window
+ * starts at the current hour and looks ahead `RAIN_WINDOW_HOURS` (12 h).
+ *
+ * Two triggers remain: rain inside the window, and active alerts. Alerts stand
+ * on their own (an NMC alert must still show when Open-Meteo failed), and the
+ * two dedupe levels are unchanged: per-day acknowledgement and in-session
+ * handling. The acknowledgement signature uses an **event fingerprint** so one
+ * shower is acknowledged once while a genuinely new one may still notify.
  */
 
 import { alertSignature } from './alerts.js';
 
-/** What today's forecast implies about going outside. */
+/** How far ahead the rain notice looks. */
+export const RAIN_WINDOW_HOURS = 12;
+/** An hour counts as wet from this amount up (mm). */
+export const RAIN_HOUR_THRESHOLD = 0.1;
+/** …or when the chance reaches this (%). */
+export const RAIN_CHANCE_THRESHOLD = 50;
+
+/** `2026-10-31T14` → 14; tolerates full ISO strings. */
+function hourOf(time) {
+  const match = /T(\d{2})/.exec(String(time || ''));
+  if (!match) return null;
+  const hour = Number(match[1]);
+  return Number.isFinite(hour) ? hour : null;
+}
+
+/** `2026-10-31T14:00` → `14:00`. */
+export function hourLabel(time) {
+  const hour = hourOf(time);
+  return hour === null ? '' : `${String(hour).padStart(2, '0')}:00`;
+}
+
+function anchorOf(forecast) {
+  const current = forecast && forecast.current ? forecast.current : null;
+  const time = current && typeof current.time === 'string' ? current.time : '';
+  // Hourly entries are local wall-clock ISO strings, so truncating to the hour
+  // and comparing as strings is enough and timezone-proof.
+  return time.length >= 13 ? `${time.slice(0, 13)}:00` : '';
+}
+
+function hoursFrom(forecast, anchor, limit) {
+  const hourly = forecast && Array.isArray(forecast.hourly) ? forecast.hourly : [];
+  if (!anchor) return hourly.slice(0, limit);
+  const start = hourly.findIndex(hour => hour && typeof hour.time === 'string' && hour.time >= anchor);
+  return (start === -1 ? hourly : hourly.slice(start)).slice(0, limit);
+}
+
+function emptySummary(kind) {
+  return {
+    kind: kind || 'none',
+    start: '', end: '', hours: 0,
+    amount: 0, maxChance: 0,
+    startLabel: '', endLabel: ''
+  };
+}
+
+/**
+ * Summarize the next `RAIN_WINDOW_HOURS` hours.
+ *
+ * `kind: 'now'` when it is raining at the window's first hour (or the current
+ * observation says so), `'soon'` for the first wet run later in the window,
+ * `'none'` otherwise. Wet hours are merged into one run; a gap of one dry hour
+ * ends the run (a new run later in the window is a separate event for the
+ * signature, but the notice only speaks about the first one).
+ *
+ * @returns {null | {
+ *   kind: 'now' | 'soon' | 'none',
+ *   start: string, end: string, hours: number,
+ *   amount: number, maxChance: number,
+ *   startLabel: string, endLabel: string
+ * }}
+ */
+export function summarizeRainWindow(forecast, options) {
+  if (!forecast) return null;
+  const settings = options || {};
+  const windowHours = Number.isFinite(settings.hours) ? Math.max(1, Math.floor(settings.hours)) : RAIN_WINDOW_HOURS;
+  const anchor = anchorOf(forecast);
+  const hours = hoursFrom(forecast, anchor, windowHours);
+  const currentAmount = forecast.current && Number.isFinite(forecast.current.precipitation)
+    ? forecast.current.precipitation
+    : 0;
+
+  // Without an hourly series there is nothing honest to say about the window;
+  // only the "it is raining right now" fact survives.
+  if (hours.length === 0) {
+    const rainingNow = currentAmount >= RAIN_HOUR_THRESHOLD;
+    const summary = emptySummary(rainingNow ? 'now' : 'none');
+    summary.amount = rainingNow ? currentAmount : 0;
+    return summary;
+  }
+
+  let run = null;
+  let chosen = null;
+  for (const hour of hours) {
+    const amount = Number.isFinite(hour.precipitation) ? hour.precipitation : 0;
+    const chance = Number.isFinite(hour.precipitationProbability) ? hour.precipitationProbability : 0;
+    const wet = amount >= RAIN_HOUR_THRESHOLD || chance >= RAIN_CHANCE_THRESHOLD;
+    if (!wet) {
+      run = null;
+      continue;
+    }
+    if (!run) {
+      run = { start: hour.time, end: hour.time, hours: 0, amount: 0, maxChance: 0 };
+      if (!chosen) chosen = run;
+    }
+    run.end = hour.time;
+    run.hours += 1;
+    run.amount += amount;
+    run.maxChance = Math.max(run.maxChance, chance);
+  }
+
+  if (!chosen) return emptySummary('none');
+
+  const firstHour = hours[0];
+  const rainingNow = currentAmount >= RAIN_HOUR_THRESHOLD
+    || (firstHour && firstHour.time === chosen.start
+      && (Number.isFinite(firstHour.precipitation) ? firstHour.precipitation : 0) >= RAIN_HOUR_THRESHOLD);
+
+  return {
+    kind: rainingNow ? 'now' : 'soon',
+    start: chosen.start,
+    end: chosen.end,
+    hours: chosen.hours,
+    amount: Math.round(chosen.amount * 10) / 10,
+    maxChance: chosen.maxChance,
+    startLabel: hourLabel(chosen.start),
+    endLabel: hourLabel(chosen.end)
+  };
+}
+
+/** Stable fingerprint of one rain event; changes only for a *new* event. */
+export function rainEventKey(summary) {
+  if (!summary || summary.kind === 'none') return '';
+  return `rain:${summary.start}:${summary.hours}:${summary.amount}`;
+}
+
+/**
+ * Daily summary kept for callers that still ask "is today wet?".
+ * The notice no longer uses it.
+ */
 export function summarizeToday(forecast) {
   if (!forecast) return null;
   const today = forecast.daily && forecast.daily[0] ? forecast.daily[0] : null;
@@ -21,17 +154,50 @@ export function summarizeToday(forecast) {
   return { amount, chance, willRain };
 }
 
-/** Signature of the current notice-worthy state; a new alert changes it. */
+/** Signature of the current notice-worthy state; a new event changes it. */
 export function noticeSignature(summary, alerts) {
-  const rain = summary && summary.willRain ? 'rain' : '';
+  const rain = rainEventKey(summary);
   return `${alertSignature(alerts)}|${rain}`;
+}
+
+/** `'07:30'` → 450; NaN when unparsable. */
+export function timeToMinutes(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim());
+  if (!match) return Number.NaN;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return Number.NaN;
+  return hours * 60 + minutes;
+}
+
+/** Is `date` inside the quiet range? Ranges may wrap midnight (23:00–07:00). */
+export function isWithinQuietHours(date, quiet) {
+  if (!quiet || quiet.enabled !== true) return false;
+  const now = date instanceof Date ? date : new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const startRaw = timeToMinutes(quiet.start);
+  const endRaw = timeToMinutes(quiet.end);
+  const start = Number.isFinite(startRaw) ? startRaw : 23 * 60;
+  const end = Number.isFinite(endRaw) ? endRaw : 7 * 60;
+  if (start === end) return false;
+  return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+}
+
+/** Has the daily digest time arrived today? Compares wall-clock minutes. */
+export function isDailyReminderDue(date, reminder) {
+  if (!reminder || reminder.enabled !== true) return false;
+  const now = date instanceof Date ? date : new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const target = timeToMinutes(reminder.time);
+  if (!Number.isFinite(target)) return false;
+  return nowMinutes >= target;
 }
 
 /**
  * Decide whether the notice should be visible right now.
  *
  * @param {object} input
- * @param {object|null} input.summary     result of `summarizeToday`
+ * @param {object|null} input.summary     result of `summarizeRainWindow`
  * @param {Array}       input.alerts      matched alerts
  * @param {object|null} input.stored      persisted `{date, signature}`
  * @param {string}      input.handled     signature dismissed in this session
@@ -42,7 +208,7 @@ export function noticeSignature(summary, alerts) {
 export function shouldNotify(input) {
   const summary = input.summary;
   const alerts = Array.isArray(input.alerts) ? input.alerts : [];
-  const rain = Boolean(summary && summary.willRain);
+  const rain = Boolean(summary && summary.kind && summary.kind !== 'none');
   const hasAlerts = alerts.length > 0;
   // Alerts stand on their own: an NMC alert must still be shown when the
   // Open-Meteo request failed, so the forecast is only required for rain.

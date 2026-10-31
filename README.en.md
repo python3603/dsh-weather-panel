@@ -59,7 +59,8 @@ the startup notice; caches are written to `localStorage`.
 | Alerts | A dedicated **Alerts** tab: district → city → province matching. The list shows level, type and time only; a row expands to a **summary + what to do**, with the official page at the end. Other districts of the same city sit in a "reference" group that never raises a notice |
 | Level policy | Blue/yellow/orange/red each raise a notice or not, and each can be marked **emphatic** — that level then paints the dialog in its own colour, with a warning bar and a pulsing dot |
 | Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
-| Startup notice | Rain today, or a warning at a level you enabled, opens a modal that needs acknowledging; quiet for the day afterwards, but a new alert re-opens it. Levels and the emphatic style live in Alerts → Settings |
+| Startup notice | Rain uses a **rolling 12-hour window** (showers that ended before you woke up no longer nag); a warning at a level you enabled still opens the modal. One acknowledgement per day per event |
+| Reminder settings | **Quiet hours** (off by default, your own range — alerts still show, rain stays silent) and a **daily weather digest** (off by default, your own time; one popup with current conditions, today's high/low and the next-12-hour rain) |
 | Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time; manual search goes down to **county/district level** (a bundled 2895-entry index, so "Xuhui" or "Pudong" resolves even offline) — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |
@@ -108,7 +109,8 @@ the startup notice; caches are written to `localStorage`.
 - **Radar tab**: CMA radar mosaic with the same product split as nmc.cn (nationwide plus seven regions), 6-minute frames, a slider and play-through; an unpublished frame falls back to the previous one.
 - **Typhoon tab**: the active (or most recent) system — track coloured by intensity, dashed forecast track, force-7/10/12 wind rings by colour; when nothing is active it says so and still offers the most recent track.
 - **Pro tab**: NW Pacific sea surface temperature (eight basins, 15 days back) and ECMWF China charts (four products, 00Z/12Z runs, 0–240 h), both enlargeable.
-- **Startup notice**: summarizes today's rain and the active alerts. The confirm button uses the theme's text colour rather than white-on-brand, so it stays readable in light and dark themes.
+- **Startup notice**: rain is judged over the **next 12 hours** (raining now / expected from-to), alerts by level. The card measures the colour the browser actually paints for the text and draws the opposite pole as an opaque surface (contrast >= 7:1), at 560 px, so it stays readable in light, dark and liquid-glass themes.
+- **Daily digest**: an optional scheduled summary (off by default) with current conditions, today's high/low and the next 12 hours of rain.
 
 ## Install
 
@@ -257,7 +259,7 @@ localStorage.removeItem('dsh-weather-panel:notice'); location.reload();   // ful
 - The typhoon basemap is an offline land mask (no place names, no borders); at 1:50m a coastline is
   generalised by about 1–2 km.
 - Device location asks for **high accuracy** (`watchPosition` with `enableHighAccuracy`, no cached fix), but the real precision is whatever the OS location service provides; **when it is worse than 3 km the panel degrades to city level** (no district shown, alerts matched by city) with a retry / switch-to-network hint.
-- The notice is evaluated at page load and every 10 minutes afterwards.
+- The notice is evaluated at page load and every 10 minutes afterwards; the rain part looks 12 hours ahead, so a shower that ended earlier is not reported.
 - Device location depends on browser permission; a denial falls back to the network with a hint.
 - Radar frames are generated from the official 6-minute cadence: the nmc.cn frame list serves no CORS headers, so a missing frame is detected by the image request failing and the view falls back to the previous one (the newest frame usually lags by 1-2).
 - The district index is a GeoNames snapshot: a few renamed or merged districts keep their old names, with a small alias table for the common ones (e.g. Liangjiang New Area → Yubei).

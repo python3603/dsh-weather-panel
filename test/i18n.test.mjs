@@ -35,7 +35,7 @@ test('keys the panel actually renders are all present', () => {
     'tab.weather', 'tab.typhoon', 'alerts.title', 'alerts.none', 'alerts.count', 'alerts.scopeCity',
     'alerts.scopeRegion', 'alerts.more', 'alerts.source', 'alerts.openAll',
     'alert.level.blue', 'alert.level.yellow', 'alert.level.orange', 'alert.level.red',
-    'notice.title', 'notice.rainTitle', 'notice.rainBody', 'notice.alertTitle', 'notice.alertBody',
+    'notice.title', 'notice.rainWindowTitle', 'notice.rainSoon', 'notice.rainNow', 'notice.dailyTitle', 'notice.alertTitle', 'notice.alertBody',
     'notice.confirm', 'notice.dismiss', 'notice.more', 'notice.source',
     'typhoon.title', 'typhoon.active', 'typhoon.ended', 'typhoon.none', 'typhoon.latest',
     'typhoon.pressure', 'typhoon.wind', 'typhoon.move', 'typhoon.forecast', 'typhoon.peak',

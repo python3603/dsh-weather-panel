@@ -572,6 +572,8 @@ function WeatherPanel(props) {
           busy: state.busy,
           onNoticeLevel: (level, enabled) => store.setAlertNoticeLevel(level, enabled),
           onStrongLevel: (level, enabled) => store.setAlertStrongLevel(level, enabled),
+          onQuietHours: patch => store.setQuietHours(patch),
+          onDailyReminder: patch => store.setDailyReminder(patch),
           onPreview: level => store.previewAlert(level),
           onRefresh: () => store.refresh({ force: true })
         })

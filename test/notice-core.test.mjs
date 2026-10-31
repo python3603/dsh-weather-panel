@@ -1,84 +1,172 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { noticeSignature, shouldNotify, summarizeToday } from '../src/lib/notice-core.js';
+import {
+  RAIN_WINDOW_HOURS,
+  rainEventKey,
+  isDailyReminderDue,
+  isWithinQuietHours,
+  noticeSignature,
+  shouldNotify,
+  summarizeRainWindow,
+  summarizeToday,
+  timeToMinutes
+} from '../src/lib/notice-core.js';
 
-const FORECAST_RAIN = {
-  current: { precipitation: 0 },
-  daily: [{ precipitationSum: 4.2, precipitationProbabilityMax: 80 }]
-};
+/**
+ * The rain trigger is a rolling window, so every fixture anchors `current.time`
+ * and builds a 24-hour series around it. The reported bug — rain at 02:00, the
+ * user opens DSH at 08:00 — is the first test.
+ */
 
-const FORECAST_DRY = {
-  current: { precipitation: 0 },
-  daily: [{ precipitationSum: 0, precipitationProbabilityMax: 5 }]
-};
+/** 24 hourly entries starting at 00:00, `wet` maps hour → {mm, chance}. */
+function hourly(wet) {
+  const out = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    const entry = wet[hour];
+    out.push({
+      time: `2026-10-31T${String(hour).padStart(2, '0')}:00`,
+      precipitation: entry && entry.mm !== undefined ? entry.mm : 0,
+      precipitationProbability: entry && entry.chance !== undefined ? entry.chance : 0
+    });
+  }
+  return out;
+}
+
+function forecastAt(hour, wet, currentRain) {
+  return {
+    current: {
+      time: `2026-10-31T${String(hour).padStart(2, '0')}:00`,
+      precipitation: currentRain === undefined ? 0 : currentRain
+    },
+    hourly: hourly(wet),
+    daily: [{ precipitationSum: 4.2, precipitationProbabilityMax: 80 }]
+  };
+}
 
 const ALERT = { id: 'a1', level: 'yellow', levelRank: 2, title: '某市发布暴雨黄色预警信号' };
 const ALERT_2 = { id: 'a2', level: 'red', levelRank: 4, title: '某市发布暴雨红色预警信号' };
 
-test('today is summarized from daily and current rain', () => {
-  assert.deepEqual(summarizeToday(FORECAST_RAIN), { amount: 4.2, chance: 80, willRain: true });
-  assert.equal(summarizeToday(FORECAST_DRY).willRain, false);
-  assert.equal(summarizeToday(null), null);
-  assert.equal(summarizeToday({}).willRain, false, 'missing fields are treated as dry');
+test('rain that ended before the user woke up does not notify', () => {
+  // 02:00–03:00 rain, user opens the panel at 08:00.
+  const forecast = forecastAt(8, { 2: { mm: 3.2 }, 3: { mm: 1.1 } });
+  const summary = summarizeRainWindow(forecast);
+  assert.equal(summary.kind, 'none', 'the window starts at 08:00, not at midnight');
+  assert.equal(RAIN_WINDOW_HOURS, 12);
+  assert.equal(shouldNotify({
+    summary, alerts: [], stored: null, handled: '', date: '2026-10-31', hasForecast: true
+  }), false);
 });
 
-test('a wet forecast or a chance spike is enough to warn', () => {
-  assert.equal(summarizeToday({ daily: [{ precipitationSum: 0.3, precipitationProbabilityMax: 0 }] }).willRain, true);
-  assert.equal(summarizeToday({ daily: [{ precipitationSum: 0, precipitationProbabilityMax: 60 }] }).willRain, true);
-  assert.equal(summarizeToday({ current: { precipitation: 0.4 } }).willRain, true, 'it can be raining right now');
-  assert.equal(summarizeToday({ daily: [{ precipitationSum: 0.1, precipitationProbabilityMax: 20 }] }).willRain, false);
+test('rain later in the window is reported with its exact hours', () => {
+  const forecast = forecastAt(8, { 14: { mm: 0.5, chance: 60 }, 15: { mm: 2, chance: 80 }, 16: { mm: 0.6, chance: 70 } });
+  const summary = summarizeRainWindow(forecast);
+  assert.equal(summary.kind, 'soon');
+  assert.equal(summary.startLabel, '14:00');
+  assert.equal(summary.endLabel, '16:00');
+  assert.equal(summary.hours, 3);
+  assert.equal(summary.amount, 3.1);
+  assert.equal(summary.maxChance, 80);
 });
 
-test('the signature changes with alerts and rain only', () => {
-  const sunny = noticeSignature(summarizeToday(FORECAST_DRY), []);
-  const rainy = noticeSignature(summarizeToday(FORECAST_RAIN), []);
-  const alerting = noticeSignature(summarizeToday(FORECAST_DRY), [ALERT]);
-  const both = noticeSignature(summarizeToday(FORECAST_RAIN), [ALERT]);
-  assert.notEqual(sunny, rainy);
-  assert.notEqual(sunny, alerting);
-  assert.notEqual(alerting, both);
-  assert.equal(alerting, noticeSignature(summarizeToday(FORECAST_DRY), [{ ...ALERT }]), 'stable across renders');
-  assert.notEqual(alerting, noticeSignature(summarizeToday(FORECAST_DRY), [ALERT, ALERT_2]), 'a new alert changes it');
+test('rain right now is reported as such', () => {
+  const forecast = forecastAt(14, { 14: { mm: 0.4, chance: 90 } }, 0.4);
+  const summary = summarizeRainWindow(forecast);
+  assert.equal(summary.kind, 'now');
+  assert.equal(summary.startLabel, '14:00');
 });
 
-test('the notice stays hidden when there is nothing to say', () => {
-  const base = { summary: summarizeToday(FORECAST_DRY), alerts: [], stored: null, handled: '', date: '2026-10-22', hasForecast: true };
-  assert.equal(shouldNotify(base), false, 'dry and quiet');
-  assert.equal(shouldNotify({ ...base, hasForecast: false }), false, 'nothing loaded yet');
+test('a single wet hour reads as a short shower', () => {
+  const forecast = forecastAt(9, { 11: { mm: 0.3, chance: 55 } });
+  const summary = summarizeRainWindow(forecast);
+  assert.equal(summary.kind, 'soon');
+  assert.equal(summary.hours, 1);
+  assert.equal(summary.startLabel, '11:00');
+  assert.equal(summary.endLabel, '11:00');
 });
 
-test('the notice appears for rain or alerts, and respects acknowledgements', () => {
-  const rain = { summary: summarizeToday(FORECAST_RAIN), alerts: [], stored: null, handled: '', date: '2026-10-22', hasForecast: true };
-  assert.equal(shouldNotify(rain), true);
-
-  const alerting = { summary: summarizeToday(FORECAST_DRY), alerts: [ALERT], stored: null, handled: '', date: '2026-10-22', hasForecast: true };
-  assert.equal(shouldNotify(alerting), true);
-
-  const signature = noticeSignature(alerting.summary, alerting.alerts);
-  assert.equal(shouldNotify({ ...alerting, stored: { date: '2026-10-22', signature } }), false, 'already acknowledged today');
-  assert.equal(shouldNotify({ ...alerting, stored: { date: '2026-10-21', signature } }), true, 'yesterday does not count');
-  assert.equal(shouldNotify({ ...alerting, handled: signature }), false, 'dismissed in this session');
-
-  const escalated = noticeSignature(alerting.summary, [ALERT, ALERT_2]);
-  assert.equal(
-    shouldNotify({ ...alerting, alerts: [ALERT, ALERT_2], stored: { date: '2026-10-22', signature } }),
-    true,
-    'a new alert re-opens the notice even after today was acknowledged'
-  );
-  assert.notEqual(escalated, signature);
+test('thresholds are amount 0.1 mm and chance 50 %', () => {
+  assert.equal(summarizeRainWindow(forecastAt(9, { 10: { mm: 0.05 } })).kind, 'none');
+  assert.equal(summarizeRainWindow(forecastAt(9, { 10: { mm: 0.1 } })).kind, 'soon');
+  assert.equal(summarizeRainWindow(forecastAt(9, { 10: { chance: 49 } })).kind, 'none');
+  assert.equal(summarizeRainWindow(forecastAt(9, { 10: { chance: 50 } })).kind, 'soon');
 });
 
-test('an alert is shown even when the forecast request failed', () => {
-  const alerting = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-22', hasForecast: false };
-  assert.equal(shouldNotify(alerting), true, 'NMC alerts do not depend on Open-Meteo');
-  assert.equal(shouldNotify({ ...alerting, summary: summarizeToday(FORECAST_RAIN) }), true);
+test('the first run wins; a gap starts a separate run that the notice ignores', () => {
+  const forecast = forecastAt(9, { 10: { mm: 0.5 }, 12: { mm: 2 } });
+  const summary = summarizeRainWindow(forecast);
+  assert.equal(summary.startLabel, '10:00');
+  assert.equal(summary.hours, 1);
+  assert.equal(rainEventKey(summary), 'rain:2026-10-31T10:00:1:0.5');
+});
+
+test('without an hourly series only "raining now" survives', () => {
+  const forecast = { current: { time: '2026-10-31T09:00', precipitation: 0 }, hourly: [] };
+  assert.equal(summarizeRainWindow(forecast).kind, 'none');
+  const wet = { current: { time: '2026-10-31T09:00', precipitation: 0.5 }, hourly: [] };
+  assert.equal(summarizeRainWindow(wet).kind, 'now');
+});
+
+test('the window honours a custom length', () => {
+  const forecast = forecastAt(8, { 15: { mm: 1 } });
+  assert.equal(summarizeRainWindow(forecast, { hours: 6 }).kind, 'none', '15:00 is outside 08:00–14:00');
+  assert.equal(summarizeRainWindow(forecast, { hours: 12 }).kind, 'soon');
+});
+
+test('the signature identifies one rain event, not the day', () => {
+  const morning = forecastAt(8, { 14: { mm: 1 } });
+  const sameEventLater = forecastAt(9, { 14: { mm: 1 } });
+  const newEvent = forecastAt(9, { 16: { mm: 1 } });
+  const first = noticeSignature(summarizeRainWindow(morning), []);
+  assert.equal(noticeSignature(summarizeRainWindow(sameEventLater), []), first, 'sliding the window does not re-notify');
+  assert.notEqual(noticeSignature(summarizeRainWindow(newEvent), []), first, 'a new event may notify again');
+  assert.equal(noticeSignature(summarizeRainWindow(forecastAt(8, {})), []), '|', 'no rain leaves only the alert part');
+});
+
+test('quiet hours wrap midnight and are off unless enabled', () => {
+  const at = (hour, minute) => new Date(2026, 9, 31, hour, minute);
+  const quiet = { enabled: true, start: '23:00', end: '07:00' };
+  assert.equal(isWithinQuietHours(at(23, 30), quiet), true);
+  assert.equal(isWithinQuietHours(at(3, 0), quiet), true);
+  assert.equal(isWithinQuietHours(at(7, 0), quiet), false);
+  assert.equal(isWithinQuietHours(at(12, 0), quiet), false);
+  assert.equal(isWithinQuietHours(at(3, 0), { ...quiet, enabled: false }), false, 'off by default');
+  assert.equal(isWithinQuietHours(at(12, 0), { enabled: true, start: '09:00', end: '17:00' }), true);
+  assert.equal(timeToMinutes('23:00'), 1380);
+  assert.ok(Number.isNaN(timeToMinutes('25:00')));
+});
+
+test('the daily digest is due from its time until midnight', () => {
+  const at = (hour, minute) => new Date(2026, 9, 31, hour, minute);
+  assert.equal(isDailyReminderDue(at(7, 59), { enabled: true, time: '08:00' }), false);
+  assert.equal(isDailyReminderDue(at(8, 0), { enabled: true, time: '08:00' }), true);
+  assert.equal(isDailyReminderDue(at(8, 0), { enabled: false, time: '08:00' }), false);
+  assert.equal(isDailyReminderDue(at(8, 0), { enabled: true, time: 'nope' }), false);
+});
+
+test('shouldNotify still keys off alerts and acknowledgements', () => {
+  const rain = summarizeRainWindow(forecastAt(8, { 14: { mm: 1 } }));
+  assert.equal(shouldNotify({ summary: rain, alerts: [], stored: null, handled: '', date: '2026-10-31', hasForecast: true }), true);
+  const signature = noticeSignature(rain, []);
+  assert.equal(shouldNotify({ summary: rain, alerts: [], stored: { date: '2026-10-31', signature }, handled: '', date: '2026-10-31', hasForecast: true }), false);
+  assert.equal(shouldNotify({ summary: rain, alerts: [], stored: null, handled: signature, date: '2026-10-31', hasForecast: true }), false);
+
+  const alertOnly = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-31', hasForecast: false };
+  assert.equal(shouldNotify(alertOnly), true, 'alerts do not depend on Open-Meteo');
+  const escalated = noticeSignature(null, [ALERT, ALERT_2]);
+  assert.equal(shouldNotify({ ...alertOnly, alerts: [ALERT, ALERT_2], stored: { date: '2026-10-31', signature: noticeSignature(null, [ALERT]) } }), true);
+  assert.notEqual(escalated, noticeSignature(null, [ALERT]));
 });
 
 test('demo mode ignores acknowledgements but still needs something to say', () => {
-  const alerting = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-22', hasForecast: false };
+  const alertOnly = { summary: null, alerts: [ALERT], stored: null, handled: '', date: '2026-10-31', hasForecast: false };
   const signature = noticeSignature(null, [ALERT]);
-  assert.equal(shouldNotify({ ...alerting, stored: { date: '2026-10-22', signature }, force: true }), true);
-  assert.equal(shouldNotify({ ...alerting, handled: signature, force: true }), true);
-  assert.equal(shouldNotify({ ...alerting, alerts: [], summary: null, force: true }), false, 'nothing to show');
+  assert.equal(shouldNotify({ ...alertOnly, stored: { date: '2026-10-31', signature }, force: true }), true);
+  assert.equal(shouldNotify({ ...alertOnly, handled: signature, force: true }), true);
+  assert.equal(shouldNotify({ ...alertOnly, alerts: [], force: true }), false, 'nothing to show');
+});
+
+test('the legacy daily summary is still available', () => {
+  assert.equal(summarizeToday({ daily: [{ precipitationSum: 4.2, precipitationProbabilityMax: 80 }] }).willRain, true);
+  assert.equal(summarizeToday(null), null);
 });

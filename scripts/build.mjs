@@ -29,6 +29,7 @@ const MODULES = [
   'src/lib/wmo.js',
   'src/lib/format.js',
   'src/lib/cache.js',
+  'src/lib/surface.js',
   'src/lib/alert-guides.js',
   'src/lib/alerts.js',
   'src/lib/typhoon.js',

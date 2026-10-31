@@ -37,7 +37,10 @@ const DEFAULT_SETTINGS = {
   preciseLocation: false,
   override: null,
   alertNotice: { ...DEFAULT_ALERT_NOTICE },
-  alertStrong: { ...DEFAULT_ALERT_STRONG }
+  alertStrong: { ...DEFAULT_ALERT_STRONG },
+  // 时段相关提醒默认关闭，由用户按自己的作息开启。
+  quietHours: { enabled: false, start: '23:00', end: '07:00' },
+  dailyReminder: { enabled: false, time: '08:00' }
 };
 
 let sharedStorage = null;
@@ -98,6 +101,35 @@ export function normalizeLevelMap(value, defaults) {
   return out;
 }
 
+const TIME_PATTERN = /^\d{1,2}:\d{2}$/;
+
+/** `'07:30'` accepted, anything else replaced by the fallback. */
+export function normalizeTimeValue(value, fallback) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return TIME_PATTERN.test(text) ? text : fallback;
+}
+
+/** Quiet hours are off unless explicitly enabled. */
+export function normalizeQuietHours(value, defaults) {
+  const base = (defaults || DEFAULT_SETTINGS).quietHours;
+  if (!value || typeof value !== 'object') return { ...base };
+  return {
+    enabled: value.enabled === true,
+    start: normalizeTimeValue(value.start, base.start),
+    end: normalizeTimeValue(value.end, base.end)
+  };
+}
+
+/** The daily digest is off unless explicitly enabled. */
+export function normalizeDailyReminder(value, defaults) {
+  const base = (defaults || DEFAULT_SETTINGS).dailyReminder;
+  if (!value || typeof value !== 'object') return { ...base };
+  return {
+    enabled: value.enabled === true,
+    time: normalizeTimeValue(value.time, base.time)
+  };
+}
+
 function normalizeOverride(value) {
   if (!value || !isNumber(value.lat) || !isNumber(value.lon)) return null;
   return {
@@ -122,7 +154,9 @@ export function readPanelSettings() {
       preciseLocation: Boolean(parsed && parsed.preciseLocation === true),
       override: parsed ? normalizeOverride(parsed.override) : null,
       alertNotice: normalizeLevelMap(parsed && parsed.alertNotice, DEFAULT_ALERT_NOTICE),
-      alertStrong: normalizeLevelMap(parsed && parsed.alertStrong, DEFAULT_ALERT_STRONG)
+      alertStrong: normalizeLevelMap(parsed && parsed.alertStrong, DEFAULT_ALERT_STRONG),
+      quietHours: normalizeQuietHours(parsed && parsed.quietHours),
+      dailyReminder: normalizeDailyReminder(parsed && parsed.dailyReminder)
     };
   } catch (error) {
     return { ...DEFAULT_SETTINGS };
@@ -803,6 +837,14 @@ export function createWeatherStore() {
       const next = { ...settings.alertStrong, [key]: enabled === true };
       persist({ alertStrong: next });
     },
+    /** Quiet hours: off by default, user sets the range. */
+    setQuietHours(patch) {
+      persist({ quietHours: normalizeQuietHours({ ...settings.quietHours, ...(patch || {}) }) });
+    },
+    /** One daily weather digest at a user-set wall-clock time. */
+    setDailyReminder(patch) {
+      persist({ dailyReminder: normalizeDailyReminder({ ...settings.dailyReminder, ...(patch || {}) }) });
+    },
     /** Preview the notice for one level, using the current location. */
     previewAlert(level) {
       setDemoAlertKind(`preview:${String(level || 'yellow')}`);
@@ -849,6 +891,32 @@ export function readNoticeState() {
 export function writeNoticeState(value) {
   try {
     getPanelStorage().setItem(NOTICE_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    /* ignore */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Daily weather digest (once per day at a user-set time)              */
+/* ------------------------------------------------------------------ */
+
+const DAILY_REMINDER_KEY = `${PANEL_ID}:daily-reminder`;
+
+/** `YYYY-MM-DD` of the last daily digest the user acknowledged, or ''. */
+export function readDailyReminderState() {
+  try {
+    const raw = getPanelStorage().getItem(DAILY_REMINDER_KEY);
+    if (!raw) return '';
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.date === 'string' ? parsed.date : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+export function writeDailyReminderState(date) {
+  try {
+    getPanelStorage().setItem(DAILY_REMINDER_KEY, JSON.stringify({ date, confirmedAt: Date.now() }));
   } catch (error) {
     /* ignore */
   }
