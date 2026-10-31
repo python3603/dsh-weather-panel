@@ -19,6 +19,7 @@ import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, DEFAULT_ALERT_NOTICE, DEFAULT_ALERT_S
 import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, listHasActiveTyphoon, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
 import { lookupNetworkLocation, reverseGeocode } from './geo.js';
 import { buildForecastUrl, normalizeForecast } from './weather.js';
+import { DEFAULT_NOTICE_FREQUENCY, normalizeNoticeFrequency } from './notice-core.js';
 import { formatCoordinates, isNumber } from './format.js';
 
 export const PANEL_ID = 'dsh-weather-panel';
@@ -40,7 +41,9 @@ const DEFAULT_SETTINGS = {
   alertStrong: { ...DEFAULT_ALERT_STRONG },
   // 时段相关提醒默认关闭，由用户按自己的作息开启。
   quietHours: { enabled: false, start: '23:00', end: '07:00' },
-  dailyReminder: { enabled: false, time: '08:00' }
+  dailyReminder: { enabled: false, time: '08:00' },
+  // 降水提醒节流：默认 3 小时最多一次，避免预报微调把弹窗刷屏。
+  noticeFrequency: DEFAULT_NOTICE_FREQUENCY
 };
 
 let sharedStorage = null;
@@ -156,7 +159,8 @@ export function readPanelSettings() {
       alertNotice: normalizeLevelMap(parsed && parsed.alertNotice, DEFAULT_ALERT_NOTICE),
       alertStrong: normalizeLevelMap(parsed && parsed.alertStrong, DEFAULT_ALERT_STRONG),
       quietHours: normalizeQuietHours(parsed && parsed.quietHours),
-      dailyReminder: normalizeDailyReminder(parsed && parsed.dailyReminder)
+      dailyReminder: normalizeDailyReminder(parsed && parsed.dailyReminder),
+      noticeFrequency: normalizeNoticeFrequency(parsed && parsed.noticeFrequency)
     };
   } catch (error) {
     return { ...DEFAULT_SETTINGS };
@@ -841,6 +845,10 @@ export function createWeatherStore() {
     setQuietHours(patch) {
       persist({ quietHours: normalizeQuietHours({ ...settings.quietHours, ...(patch || {}) }) });
     },
+    /** Rain-notice throttle: every / 1h / 3h / 6h / 12h / daily. */
+    setNoticeFrequency(value) {
+      persist({ noticeFrequency: normalizeNoticeFrequency(value) });
+    },
     /** One daily weather digest at a user-set wall-clock time. */
     setDailyReminder(patch) {
       persist({ dailyReminder: normalizeDailyReminder({ ...settings.dailyReminder, ...(patch || {}) }) });
@@ -891,6 +899,32 @@ export function readNoticeState() {
 export function writeNoticeState(value) {
   try {
     getPanelStorage().setItem(NOTICE_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    /* ignore */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Rain-notice throttle bookkeeping                                    */
+/* ------------------------------------------------------------------ */
+
+const RAIN_NOTICE_KEY = `${PANEL_ID}:rain-notice-at`;
+
+/** Epoch ms of the last rain notice shown, or NaN when never shown. */
+export function readRainNoticeAt() {
+  try {
+    const raw = getPanelStorage().getItem(RAIN_NOTICE_KEY);
+    if (!raw) return Number.NaN;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : Number.NaN;
+  } catch (error) {
+    return Number.NaN;
+  }
+}
+
+export function writeRainNoticeAt(timestamp) {
+  try {
+    getPanelStorage().setItem(RAIN_NOTICE_KEY, String(Number.isFinite(timestamp) ? timestamp : Date.now()));
   } catch (error) {
     /* ignore */
   }

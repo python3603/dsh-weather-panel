@@ -460,6 +460,14 @@ function WeatherPanel(props) {
             : null,
           h('button', {
             type: 'button',
+            className: `dshw-btn dshw-btn-icon${tab === 'settings' ? ' dshw-btn-active' : ''}`,
+            onClick: () => setTab('settings'),
+            title: translate('settings.open'),
+            'aria-label': translate('settings.open'),
+            'aria-pressed': tab === 'settings' ? 'true' : 'false'
+          }, h(SettingsGlyph)),
+          h('button', {
+            type: 'button',
             className: 'dshw-btn dshw-btn-icon',
             onClick: () => store.refresh({ force: true }),
             title: translate('action.refresh'),
@@ -547,7 +555,8 @@ function WeatherPanel(props) {
         tabButton('satellite', translate('tab.satellite')),
         tabButton('radar', translate('tab.radar')),
         typhoonAvailable ? tabButton('typhoon', translate('tab.typhoon')) : null,
-        tabButton('pro', translate('tab.pro'))
+        tabButton('pro', translate('tab.pro')),
+        tabButton('settings', translate('settings.open'))
       ),
 
       !forecast && tab === 'weather'
@@ -570,11 +579,7 @@ function WeatherPanel(props) {
           settings,
           location: state.location,
           busy: state.busy,
-          onNoticeLevel: (level, enabled) => store.setAlertNoticeLevel(level, enabled),
-          onStrongLevel: (level, enabled) => store.setAlertStrongLevel(level, enabled),
-          onQuietHours: patch => store.setQuietHours(patch),
-          onDailyReminder: patch => store.setDailyReminder(patch),
-          onPreview: level => store.previewAlert(level),
+          onOpenSettings: () => setTab('settings'),
           onRefresh: () => store.refresh({ force: true })
         })
         : null,
@@ -591,6 +596,21 @@ function WeatherPanel(props) {
         ? h(RadarView, { t: translate, lang })
         : null,
 
+      tab === 'settings'
+        ? h(SettingsView, {
+          t: translate,
+          lang,
+          settings,
+          onBack: () => setTab('weather'),
+          onFrequency: value => store.setNoticeFrequency(value),
+          onQuietHours: patch => store.setQuietHours(patch),
+          onDailyReminder: patch => store.setDailyReminder(patch),
+          onNoticeLevel: (level, enabled) => store.setAlertNoticeLevel(level, enabled),
+          onStrongLevel: (level, enabled) => store.setAlertStrongLevel(level, enabled),
+          onPreview: level => store.previewAlert(level)
+        })
+        : null,
+
       tab === 'typhoon'
         ? (state.typhoonActive && state.typhoon
           ? h(TyphoonView, {
@@ -604,6 +624,7 @@ function WeatherPanel(props) {
         : null,
 
       h(PanelFooter, { t: translate, state })
+
     )
   );
 }

@@ -103,6 +103,8 @@ function WeatherNotice(props) {
 
   const rain = summarizeRainWindow(state.forecast, { hours: RAIN_WINDOW_HOURS });
   const quietActive = isWithinQuietHours(now, quietHours);
+  const frequency = settings.noticeFrequency || DEFAULT_NOTICE_FREQUENCY;
+  const lastRainAt = readRainNoticeAt();
   // Quiet hours only silence the rain part; alerts always show.
   const rainForNotice = rain && rain.kind !== 'none' && !quietActive ? rain : null;
   const signature = noticeSignature(rainForNotice, alerts);
@@ -114,6 +116,9 @@ function WeatherNotice(props) {
     handled,
     date,
     hasForecast: Boolean(state.forecast),
+    frequency,
+    lastRainAt,
+    now,
     // Demo/preview mode ignores the acknowledgements so the dialog can be
     // inspected again on every reload; the real path never sets this.
     force: Boolean(readDemoAlertKind())
@@ -147,6 +152,13 @@ function WeatherNotice(props) {
     if (primaryRef.current && typeof primaryRef.current.focus === 'function') primaryRef.current.focus();
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [visible, signature, dailyVisible]);
+
+  // Remember when a rain notice was last shown, so the frequency setting can
+  // throttle the next one (alerts are never throttled).
+  React.useEffect(() => {
+    if (!visible || !rainForNotice) return;
+    writeRainNoticeAt(Date.now());
+  }, [visible, signature]);
 
   function acknowledge() {
     if (noticeVisible) {
@@ -267,7 +279,9 @@ function WeatherNotice(props) {
         : null,
       h('header', { className: 'dshw-modal-head' },
         h('div', { className: 'dshw-modal-icon' },
-          h(WeatherGlyph, { code: hasAlert ? 95 : 61, isDay: false, size: strong ? 50 : 42 })
+          strong
+            ? h('span', { className: 'dshw-notice-warn-icon', style: { color: accent } }, h(WarningGlyph, { size: 54 }))
+            : h(WeatherGlyph, { code: hasAlert ? 95 : 61, isDay: false, size: 42 })
         ),
         h('div', { className: 'dshw-modal-titles' },
           h('h2', { className: 'dshw-modal-title', id: 'dshw-notice-title' }, t('notice.title')),

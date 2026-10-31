@@ -60,7 +60,7 @@ the startup notice; caches are written to `localStorage`.
 | Level policy | Blue/yellow/orange/red each raise a notice or not, and each can be marked **emphatic** — that level then paints the dialog in its own colour, with a warning bar and a pulsing dot |
 | Typhoon | Active (or latest) system: offline coastline basemap, observed and forecast tracks, intensity colours, wind radii, click a point for details, one-click “back to current” |
 | Startup notice | Rain uses a **rolling 12-hour window** (showers that ended before you woke up no longer nag); a warning at a level you enabled still opens the modal. One acknowledgement per day per event |
-| Reminder settings | **Quiet hours** (off by default, your own range — alerts still show, rain stays silent) and a **daily weather digest** (off by default, your own time; one popup with current conditions, today's high/low and the next-12-hour rain) |
+| Reminder settings | A **Settings tab** in the panel (the header gear opens it too): **notice frequency** (default at most every 3 hours; every event / 1h / 6h / 12h / daily), quiet hours, the daily digest, per-level alert switches and a preview. The alerts tab keeps its original collapsible settings |
 | Location | **Network (public IP) or System (browser geolocation)**, persisted and switchable at any time; manual search goes down to **county/district level** (a bundled 2895-entry index, so "Xuhui" or "Pudong" resolves even offline) — source, IP and accuracy are always shown |
 | Proxy hint | An exit IP outside mainland China suggests switching the city manually |
 | Controls | Refresh, °C/°F and km/h / mph (persisted), close panel; refresh every 10 minutes (paused while hidden, caught up on return) |

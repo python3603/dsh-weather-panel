@@ -113,18 +113,13 @@ function SettingSwitch(props) {
 function AlertsView(props) {
   const {
     t, lang, alerts, scanned, settings, location, checkedAt,
-    onNoticeLevel, onStrongLevel, onPreview, onRefresh, busy,
-    onQuietHours, onDailyReminder
+    onRefresh, busy, onOpenSettings
   } = props;
   const [openId, setOpenId] = React.useState('');
-  const [previewLevel, setPreviewLevel] = React.useState('yellow');
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   const list = Array.isArray(alerts) ? alerts : [];
   const noticeMap = (settings && settings.alertNotice) || DEFAULT_ALERT_NOTICE;
   const strongMap = (settings && settings.alertStrong) || DEFAULT_ALERT_STRONG;
-  const quiet = (settings && settings.quietHours) || { enabled: false, start: '23:00', end: '07:00' };
-  const dailyReminder = (settings && settings.dailyReminder) || { enabled: false, time: '08:00' };
   const placeLabel = location && location.label ? location.label : '';
   // 本区/本市 + 省级 = 真正对我的预警；同市其他区县另列一组，只作参考、不弹窗。
   const primary = list.filter(alert => alert.scope !== 'other');
@@ -134,128 +129,17 @@ function AlertsView(props) {
   const noticeNames = ALERT_LEVELS.filter(level => noticeMap[level.key] === true).map(levelName);
   const strongNames = ALERT_LEVELS.filter(level => strongMap[level.key] === true).map(levelName);
 
-  const settingsCard = h('section', { className: 'dshw-card dshw-alert-settings' },
+  // 提醒设置已经搬进独立的「设置」页，这里只留一个入口，避免两处重复。
+  const settingsEntry = h('section', { className: 'dshw-card dshw-alert-settings' },
     h('div', { className: 'dshw-alerts-head' },
-      h('h2', { className: 'dshw-section-title' }, t('alerts.settingsTitle')),
-      h('button', {
-        type: 'button',
-        className: 'dshw-alerts-toggle',
-        'aria-expanded': settingsOpen ? 'true' : 'false',
-        onClick: () => setSettingsOpen(value => !value)
-      },
-        settingsOpen ? t('alerts.collapse') : t('alerts.expandSettings'),
-        h('span', { className: `dshw-caret${settingsOpen ? ' dshw-caret-up' : ''}`, 'aria-hidden': 'true' })
-      )
+      h('h2', { className: 'dshw-section-title' }, t('settings.title')),
+      h('button', { type: 'button', className: 'dshw-btn', onClick: onOpenSettings }, t('settings.open'))
     ),
     h('p', { className: 'dshw-note dshw-alert-policy' },
       `${t('alerts.currentNotice')}：${noticeNames.join(' · ') || t('alerts.noneEnabled')}`
       + (strongNames.length > 0 ? ` ｜ ${t('alerts.currentStrong')}：${strongNames.join(' · ')}` : '')
     ),
-    h('p', { className: 'dshw-note' }, t('alerts.settingsHint')),
-    settingsOpen
-      ? h('div', { className: 'dshw-alert-settings-body' },
-        ALERT_LEVELS.map(level => h('div', { className: 'dshw-alert-setting-row', key: level.key },
-          h('span', { className: 'dshw-alert-setting-name' },
-            h('i', { className: 'dshw-level-dot', style: { background: level.color }, 'aria-hidden': 'true' }),
-            (lang === 'en' ? level.en : level.zh),
-            h('span', { className: 'dshw-note' }, lang === 'en'
-              ? `${level.gradeEn} · ${level.severityEn}`
-              : `${level.grade} · ${level.severity}`)
-          ),
-          h('div', { className: 'dshw-alert-setting-toggles' },
-            h(AlertLevelToggle, {
-              level: level.key,
-              lang,
-              on: noticeMap[level.key] === true,
-              label: t('alerts.noticeToggle'),
-              onChange: value => onNoticeLevel(level.key, value)
-            }),
-            h(AlertLevelToggle, {
-              level: level.key,
-              lang,
-              on: strongMap[level.key] === true,
-              label: t('alerts.strongToggle'),
-              onChange: value => onStrongLevel(level.key, value)
-            })
-          )
-        )),
-        h('div', { className: 'dshw-alert-setting-row' },
-          h('span', { className: 'dshw-alert-setting-name' },
-            t('alerts.quietTitle'),
-            h('span', { className: 'dshw-note' }, t('alerts.quietHint'))
-          ),
-          h('div', { className: 'dshw-alert-setting-toggles dshw-time-row' },
-            h(SettingSwitch, {
-              on: quiet.enabled,
-              label: t('alerts.quietEnable'),
-              onChange: value => onQuietHours({ enabled: value })
-            }),
-            h('label', { className: 'dshw-time-field' },
-              h('span', null, t('alerts.quietFrom')),
-              h('input', {
-                type: 'time',
-                value: quiet.start,
-                onChange: event => onQuietHours({ start: event.target.value }),
-                'aria-label': t('alerts.quietFrom')
-              })
-            ),
-            h('label', { className: 'dshw-time-field' },
-              h('span', null, t('alerts.quietTo')),
-              h('input', {
-                type: 'time',
-                value: quiet.end,
-                onChange: event => onQuietHours({ end: event.target.value }),
-                'aria-label': t('alerts.quietTo')
-              })
-            )
-          )
-        ),
-        h('div', { className: 'dshw-alert-setting-row' },
-          h('span', { className: 'dshw-alert-setting-name' },
-            t('alerts.dailyTitle'),
-            h('span', { className: 'dshw-note' }, t('alerts.dailyHint'))
-          ),
-          h('div', { className: 'dshw-alert-setting-toggles dshw-time-row' },
-            h(SettingSwitch, {
-              on: dailyReminder.enabled,
-              label: t('alerts.dailyEnable'),
-              onChange: value => onDailyReminder({ enabled: value })
-            }),
-            h('label', { className: 'dshw-time-field' },
-              h('span', null, t('alerts.dailyTime')),
-              h('input', {
-                type: 'time',
-                value: dailyReminder.time,
-                onChange: event => onDailyReminder({ time: event.target.value }),
-                'aria-label': t('alerts.dailyTime')
-              })
-            )
-          )
-        ),
-        h('div', { className: 'dshw-alert-preview' },
-          h('div', { className: 'dshw-alert-preview-head' },
-            h('span', { className: 'dshw-note' }, t('alerts.previewHint')),
-            h('div', { className: 'dshw-alert-preview-actions' },
-              h('div', { className: 'dshw-segmented dshw-segmented-compact', role: 'group', 'aria-label': t('alerts.previewLevel') },
-                ALERT_LEVELS.map(level => h('button', {
-                  type: 'button',
-                  key: `pv-${level.key}`,
-                  className: `dshw-seg${previewLevel === level.key ? ' dshw-seg-active' : ''}`,
-                  'aria-pressed': previewLevel === level.key ? 'true' : 'false',
-                  onClick: () => setPreviewLevel(level.key)
-                }, lang === 'en' ? level.en : level.zh))
-              ),
-              h('button', {
-                type: 'button',
-                className: 'dshw-btn',
-                onClick: () => onPreview(previewLevel)
-              }, t('alerts.preview'))
-            )
-          ),
-          h('p', { className: 'dshw-note' }, t('alerts.previewPlace', { place: placeLabel || t('alerts.previewPlaceFallback') }))
-        )
-      )
-      : null
+    h('p', { className: 'dshw-note' }, t('settings.movedHint'))
   );
 
   return h('div', { className: 'dshw-alerts-view' },
@@ -327,6 +211,6 @@ function AlertsView(props) {
       )
       : null,
 
-    settingsCard
+    settingsEntry
   );
 }

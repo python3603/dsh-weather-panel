@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  NOTICE_FREQUENCIES,
   RAIN_WINDOW_HOURS,
+  DEFAULT_NOTICE_FREQUENCY,
+  normalizeNoticeFrequency,
+  rainNoticeAllowed,
   rainEventKey,
   isDailyReminderDue,
   isWithinQuietHours,
@@ -97,7 +101,7 @@ test('the first run wins; a gap starts a separate run that the notice ignores', 
   const summary = summarizeRainWindow(forecast);
   assert.equal(summary.startLabel, '10:00');
   assert.equal(summary.hours, 1);
-  assert.equal(rainEventKey(summary), 'rain:2026-10-31T10:00:1:0.5');
+  assert.equal(rainEventKey(summary), 'rain:soon:2026-10-31T10:00');
 });
 
 test('without an hourly series only "raining now" survives', () => {
@@ -169,4 +173,43 @@ test('demo mode ignores acknowledgements but still needs something to say', () =
 test('the legacy daily summary is still available', () => {
   assert.equal(summarizeToday({ daily: [{ precipitationSum: 4.2, precipitationProbabilityMax: 80 }] }).willRain, true);
   assert.equal(summarizeToday(null), null);
+});
+
+
+test('the frequency setting throttles rain but never alerts', () => {
+  const rain = summarizeRainWindow(forecastAt(8, { 14: { mm: 1 } }));
+  const now = new Date(2026, 9, 31, 10, 0);
+  const hourAgo = now.getTime() - 60 * 60 * 1000;
+  const base = { summary: rain, alerts: [], stored: null, handled: '', date: '2026-10-31', hasForecast: true, now };
+
+  assert.equal(shouldNotify({ ...base, frequency: 'every', lastRainAt: hourAgo }), true);
+  assert.equal(shouldNotify({ ...base, frequency: '3h', lastRainAt: hourAgo }), false, 'too soon after the last rain notice');
+  assert.equal(shouldNotify({ ...base, frequency: '3h', lastRainAt: now.getTime() - 4 * 3600 * 1000 }), true);
+  assert.equal(shouldNotify({ ...base, frequency: '3h', lastRainAt: Number.NaN }), true, 'never shown before');
+
+  // An alert ignores the throttle entirely.
+  const alertBase = { ...base, summary: null, alerts: [{ id: 'a1', level: 'red' }], hasForecast: true };
+  assert.equal(shouldNotify({ ...alertBase, frequency: 'daily', lastRainAt: hourAgo }), true);
+});
+
+test('the daily preset compares calendar days', () => {
+  const now = new Date(2026, 9, 31, 9, 0);
+  const sameDay = new Date(2026, 9, 31, 1, 0).getTime();
+  const yesterday = new Date(2026, 9, 30, 22, 0).getTime();
+  assert.equal(rainNoticeAllowed('daily', sameDay, now), false);
+  assert.equal(rainNoticeAllowed('daily', yesterday, now), true);
+});
+
+test('an ongoing shower keeps one fingerprint per day', () => {
+  const morning = summarizeRainWindow(forecastAt(9, { 9: { mm: 0.6 }, 10: { mm: 0.4 } }, 0.6));
+  const noon = summarizeRainWindow(forecastAt(12, { 12: { mm: 0.5 } }, 0.5));
+  assert.equal(morning.kind, 'now');
+  assert.equal(rainEventKey(morning), 'rain:now:2026-10-31');
+  assert.equal(rainEventKey(noon), 'rain:now:2026-10-31', 'the hour sliding must not re-notify');
+});
+
+test('unknown frequency values fall back to the default', () => {
+  assert.equal(normalizeNoticeFrequency('nope'), DEFAULT_NOTICE_FREQUENCY);
+  assert.equal(normalizeNoticeFrequency('12h'), '12h');
+  assert.equal(NOTICE_FREQUENCIES.length, 6);
 });

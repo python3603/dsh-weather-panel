@@ -412,10 +412,9 @@ test('opening a warning shows its summary, guide and the official link', () => {
   assert.ok(!text.includes('受台风或其外围环流影响'), 'only the opened warning expands its summary');
 });
 
-test('the alert settings expose per-level toggles and a preview', () => {
+test('the alerts tab links to the dedicated settings sheet', () => {
   const { shim, component } = bootBundle({
-    WeatherPanel: ['zh', false, 'alerts'],
-    AlertsView: ['', 'yellow', true]
+    WeatherPanel: ['zh', false, 'alerts']
   });
   const Panel = component('main');
 
@@ -424,8 +423,26 @@ test('the alert settings expose per-level toggles and a preview', () => {
     store: createStore(baseState({ alerts: [ALERT] }))
   }));
 
-  for (const label of ['提醒设置', '蓝色', '黄色', '橙色', '红色', '提醒', '加强', '预览弹窗', '预览地点']) {
+  assert.ok(text.includes('提醒设置'), 'the card names the settings surface');
+  assert.ok(text.includes('设置'), 'and offers the entry button');
+});
+
+test('the settings page carries frequency, quiet hours, digest, levels and preview', () => {
+  const { shim, component } = bootBundle({
+    WeatherPanel: ['zh', false, 'settings']
+  });
+  const Panel = component('main');
+
+  const text = renderToText(shim, shim.React.createElement(Panel, {
+    ...PANEL_PROPS,
+    store: createStore(baseState({ alerts: [ALERT] }))
+  }));
+
+  for (const label of ['提醒设置', '返回天气', '提醒频率', '每 3 小时最多一次', '免打扰时段', '每日天气提醒', '预警等级提醒', '预览弹窗', '提醒', '加强']) {
     assert.ok(text.includes(label), `renders ${label}`);
+  }
+  for (const level of ['蓝色', '黄色', '橙色', '红色']) {
+    assert.ok(text.includes(level), `lists the ${level} level`);
   }
 });
 

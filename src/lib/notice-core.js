@@ -134,10 +134,58 @@ export function summarizeRainWindow(forecast, options) {
   };
 }
 
-/** Stable fingerprint of one rain event; changes only for a *new* event. */
+/** How often the user allows a rain notice to interrupt them. */
+export const NOTICE_FREQUENCIES = [
+  { key: 'every', zh: '每次新降水', en: 'Every new event', ms: 0 },
+  { key: '1h', zh: '每小时最多一次', en: 'At most hourly', ms: 60 * 60 * 1000 },
+  { key: '3h', zh: '每 3 小时最多一次', en: 'At most every 3 hours', ms: 3 * 60 * 60 * 1000 },
+  { key: '6h', zh: '每 6 小时最多一次', en: 'At most every 6 hours', ms: 6 * 60 * 60 * 1000 },
+  { key: '12h', zh: '每 12 小时最多一次', en: 'At most every 12 hours', ms: 12 * 60 * 60 * 1000 },
+  { key: 'daily', zh: '每天最多一次', en: 'At most once a day', ms: null }
+];
+
+export const DEFAULT_NOTICE_FREQUENCY = '3h';
+
+/** A persisted frequency key, falling back to the default. */
+export function normalizeNoticeFrequency(value) {
+  return NOTICE_FREQUENCIES.some(item => item.key === value) ? value : DEFAULT_NOTICE_FREQUENCY;
+}
+
+/**
+ * May a rain notice appear again?
+ *
+ * `'daily'` compares local calendar days; the other presets use a minimum gap
+ * since the last rain notice. Alerts never go through this gate.
+ */
+export function rainNoticeAllowed(frequency, lastAt, now) {
+  const key = normalizeNoticeFrequency(frequency);
+  if (key === 'every') return true;
+  if (!Number.isFinite(lastAt)) return true;
+  const current = now instanceof Date ? now.getTime() : Date.now();
+  if (key === 'daily') {
+    const last = new Date(lastAt);
+    const today = new Date(current);
+    return last.toDateString() !== today.toDateString();
+  }
+  const preset = NOTICE_FREQUENCIES.find(item => item.key === key);
+  const gap = preset && Number.isFinite(preset.ms) ? preset.ms : 3 * 60 * 60 * 1000;
+  return current - lastAt >= gap;
+}
+
+/**
+ * Stable fingerprint of one rain event.
+ *
+ * The amount is deliberately left out: a forecast refresh that changes 11.0 mm
+ * to 11.4 mm is the same event and must not re-notify. An ongoing rain uses its
+ * **date** so one acknowledged rainy day does not pop every hour.
+ */
 export function rainEventKey(summary) {
   if (!summary || summary.kind === 'none') return '';
-  return `rain:${summary.start}:${summary.hours}:${summary.amount}`;
+  if (summary.kind === 'now') {
+    const day = String(summary.start || '').slice(0, 10);
+    return `rain:now:${day}`;
+  }
+  return `rain:soon:${summary.start}`;
 }
 
 /**
@@ -210,9 +258,10 @@ export function shouldNotify(input) {
   const alerts = Array.isArray(input.alerts) ? input.alerts : [];
   const rain = Boolean(summary && summary.kind && summary.kind !== 'none');
   const hasAlerts = alerts.length > 0;
-  // Alerts stand on their own: an NMC alert must still be shown when the
-  // Open-Meteo request failed, so the forecast is only required for rain.
-  if (!hasAlerts && !(input.hasForecast && rain)) return false;
+  // Frequency gate: the rain part may be throttled by the user's choice. The
+  // alert part never is.
+  const rainAllowed = rain && rainNoticeAllowed(input.frequency, input.lastRainAt, input.now);
+  if (!hasAlerts && !(input.hasForecast && rainAllowed)) return false;
   // Demo mode (a fake alert injected on purpose) ignores the acknowledgements so
   // the dialog can be inspected repeatedly without clearing storage each time.
   if (input.force === true) return true;
