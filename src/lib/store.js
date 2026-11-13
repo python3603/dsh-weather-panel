@@ -33,6 +33,11 @@ const TYPHOON_TTL_MS = 60 * 60 * 1000;
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 12000;
+/** A transient network error gets one immediate retry before we give up. */
+const FETCH_RETRY_DELAY_MS = 600;
+/** After a failed refresh, try again sooner than the 10-minute auto refresh. */
+const RETRY_DELAY_MS = 60 * 1000;
+const RETRY_MAX_DELAY_MS = 5 * 60 * 1000;
 const DEFAULT_SETTINGS = {
   units: 'metric',
   preciseLocation: false,
@@ -305,8 +310,8 @@ export function fetchText(url, options) {
   return fetchRaw(url, options).then(response => response.text());
 }
 
-function fetchRaw(url, options) {
-  const settings = options || {};
+/** One actual network attempt, kept separate so a transient failure can retry. */
+function fetchOnce(url, settings) {
   const externalSignal = settings.signal;
   const controller = new AbortController();
   const abortFromOutside = () => controller.abort();
@@ -336,6 +341,36 @@ function fetchRaw(url, options) {
     clearTimeout(timer);
     if (externalSignal) externalSignal.removeEventListener('abort', abortFromOutside);
   });
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with one retry for transient network errors.
+ *
+ * A hard timeout is not retried (two 12 s waits would feel broken), and an
+ * external abort (a newer refresh) stops immediately. Only the case where the
+ * request itself could not be made — DNS, TLS, dropped connection — gets a
+ * second chance.
+ */
+async function fetchRaw(url, options) {
+  const settings = options || {};
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await fetchOnce(url, settings);
+    } catch (error) {
+      lastError = error;
+      const externalAbort = Boolean(settings.signal && settings.signal.aborted);
+      const retryable = !error.status && error.name !== 'AbortError';
+      if (attempt === 1 || !retryable || externalAbort) throw error;
+      await delay(FETCH_RETRY_DELAY_MS);
+      if (settings.signal && settings.signal.aborted) throw error;
+    }
+  }
+  throw lastError;
 }
 
 /** Ask the browser for device location. */
@@ -475,11 +510,23 @@ export function taggedError(kind, cause) {
   return error;
 }
 
+/** Remember which data source failed, so the banner can name it. */
+function withSource(promise, source) {
+  return promise.catch(error => {
+    const wrapped = error instanceof Error ? error : new Error(String(error));
+    if (!wrapped.source) wrapped.source = source;
+    throw wrapped;
+  });
+}
+
 export function describeError(error, translate) {
   if (!error) return translate('error.weather');
   if (error.kind === 'locate') return translate('error.locate');
+  if (error.source === 'alerts') return translate('error.alerts');
+  if (error.source === 'typhoon') return translate('error.typhoon');
   if (typeof error.status === 'number') return translate('error.http', { status: error.status });
   if (error.name === 'AbortError') return translate('error.timeout');
+  if (error.name === 'TypeError') return translate('error.network');
   return translate('error.weather');
 }
 
@@ -621,6 +668,8 @@ export function createWeatherStore() {
   let abortController = null;
   let lastAttempt = 0;
   let timer = null;
+  let retryTimer = null;
+  let retryDelay = RETRY_DELAY_MS;
   let visibilityHandler = null;
   let started = false;
   let lang = 'zh';
@@ -641,9 +690,35 @@ export function createWeatherStore() {
     return run === runId;
   }
 
+  function clearRetry() {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+
+  function resetRetry() {
+    clearRetry();
+    retryDelay = RETRY_DELAY_MS;
+  }
+
+  /**
+   * A failed refresh is retried on its own: waiting the full 10-minute auto
+   * refresh makes a brief network blip look like a permanent failure.
+   */
+  function scheduleRetry() {
+    clearRetry();
+    const wait = retryDelay;
+    retryDelay = Math.min(retryDelay * 2, RETRY_MAX_DELAY_MS);
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      refresh({ force: true });
+    }, wait);
+  }
+
   async function refresh(options) {
     const force = Boolean(options && options.force);
     const run = ++runId;
+    clearRetry();
     if (abortController) abortController.abort();
     const controller = new AbortController();
     abortController = controller;
@@ -671,7 +746,7 @@ export function createWeatherStore() {
     }
 
     const tasks = [];
-    tasks.push((async () => {
+    tasks.push(withSource((async () => {
       if (cachedForecast && cachedSavedAt && Date.now() - cachedSavedAt < FORECAST_TTL_MS) return;
       const payload = await fetchJson(buildForecastUrl(location.lat, location.lon), { signal: controller.signal });
       const normalized = normalizeForecast(payload);
@@ -679,9 +754,9 @@ export function createWeatherStore() {
       cache.set('latest', normalized, FORECAST_TTL_MS);
       if (!alive(run)) return;
       emit({ forecast: normalized, updatedAt: Date.now(), phase: 'ready' });
-    })());
+    })(), 'forecast'));
 
-    tasks.push((async () => {
+    tasks.push(withSource((async () => {
       const demo = buildDemoAlert(readDemoAlertKind(), undefined, location);
       if (demo) {
         if (!alive(run)) return;
@@ -691,9 +766,9 @@ export function createWeatherStore() {
       const result = await loadAlerts(location, controller.signal, force);
       if (!alive(run)) return;
       emit({ alerts: result.alerts, alertsScanned: result.scanned, alertsCheckedAt: result.checkedAt });
-    })());
+    })(), 'alerts'));
 
-    tasks.push((async () => {
+    tasks.push(withSource((async () => {
       const result = await loadTyphoon(force, controller.signal);
       if (!alive(run)) return;
       emit({
@@ -702,15 +777,18 @@ export function createWeatherStore() {
         typhoonId: result.pickedId,
         typhoonActive: listHasActiveTyphoon(result.list)
       });
-    })());
+    })(), 'typhoon'));
 
     const results = await Promise.allSettled(tasks);
     if (!alive(run)) return;
     const failed = results.find(item => item.status === 'rejected');
-    emit({
-      busy: false,
-      error: failed && failed.status === 'rejected' ? describeError(failed.reason, translate) : null
-    });
+    if (failed && failed.status === 'rejected') {
+      emit({ busy: false, error: describeError(failed.reason, translate) });
+      scheduleRetry();
+    } else {
+      resetRetry();
+      emit({ busy: false, error: null });
+    }
   }
 
   function start(options) {
@@ -725,7 +803,8 @@ export function createWeatherStore() {
       }, TICK_MS);
       if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
         visibilityHandler = () => {
-          if (!document.hidden && Date.now() - lastAttempt >= AUTO_REFRESH_MS) refresh({ force: false });
+          if (document.hidden) return;
+          if (state.error || Date.now() - lastAttempt >= AUTO_REFRESH_MS) refresh({ force: false });
         };
         document.addEventListener('visibilitychange', visibilityHandler);
       }
@@ -733,6 +812,7 @@ export function createWeatherStore() {
     return () => {
       if (timer) clearInterval(timer);
       timer = null;
+      clearRetry();
       if (visibilityHandler && typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', visibilityHandler);
         visibilityHandler = null;

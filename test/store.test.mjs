@@ -9,6 +9,7 @@ import {
   requestDevicePosition,
   buildDemoAlert,
   demoAlertKinds,
+  describeError,
   readDemoAlertKind,
   placeCacheKey,
   readNoticeState,
@@ -185,4 +186,13 @@ test('a coarse gps fix degrades to city level instead of a wrong district', () =
   assert.equal(coarse.district, '', 'a 20 km fix must not claim a district');
   assert.equal(coarse.label, '青岛市 · 山东省');
   assert.equal(coarse.city, '青岛市');
+});
+
+test('describeError names the failing source instead of blaming the weather', () => {
+  const t = (key) => key;
+  assert.equal(describeError(new TypeError('Failed to fetch'), t), 'error.network');
+  assert.equal(describeError(Object.assign(new Error('bad'), { status: 503 }), t), 'error.http');
+  assert.equal(describeError(Object.assign(new Error('bad'), { source: 'alerts' }), t), 'error.alerts');
+  assert.equal(describeError(Object.assign(new Error('bad'), { source: 'typhoon' }), t), 'error.typhoon');
+  assert.equal(describeError(Object.assign(new Error('bad'), { kind: 'data' }), t), 'error.weather');
 });
