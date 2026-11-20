@@ -39,7 +39,7 @@
   <img src="https://raw.githubusercontent.com/python3603/dsh-weather-panel/main/docs/assets/data-flow.svg" alt="定位、天气、预警与台风数据汇入同一个天气面板" width="100%" />
 </div>
 
-**数据链路（严谨版）**：浏览器端并发定位（三个 IP 源竞速，可选系统高精度定位）→ BigDataCloud 逆地理得到城市名 → 以该坐标向 Open-Meteo 请求当前 / 逐时 / 逐日数据；同一轮并行拉取中央气象台全国预警（按市 → 省匹配标题）与台风列表/轨迹；全部结果进入一个共享 store，供面板与启动提醒共用，缓存写入 `localStorage`。
+**数据链路（严谨版）**：浏览器端并发定位（三个 IP 源竞速，可选系统高精度定位）→ BigDataCloud 逆地理得到城市名 → 以该坐标向 Open-Meteo 请求当前 / 逐时 / 逐日数据；若 Open-Meteo 网络错误、超时或返回异常，自动改用中央气象台 `weather.cma.cn` 的国内站点（当前 + 未来 7 天，无逐小时），并在面板标注来源与降级提示。同一轮并行拉取中央气象台全国预警（按市 → 省匹配标题）与台风列表/轨迹；全部结果进入一个共享 store，供面板与启动提醒共用，缓存写入 `localStorage`。
 
 ## 功能
 
@@ -169,6 +169,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 | 用途 | 服务 | 说明 |
 | --- | --- | --- |
 | 天气/预报 | [Open-Meteo](https://open-meteo.com/) | 免 Key；数据 **CC BY 4.0**，面板底部保留署名 |
+| 天气备用源 | **中央气象台** `weather.cma.cn` | 主源失败时自动切换；`autocomplete` 选站 + `weather/view` 取当前 + 未来 7 天，CORS `*`；无逐小时序列，面板会标注降级 |
 | 网络定位 | [ipwho.is](https://ipwho.is/)、[ipinfo.io](https://ipinfo.io/)、[api.ip.sb](https://ip.sb/) | 三源并发竞速，先可用者胜；单源失败不影响面板 |
 | 逆地理编码 | [BigDataCloud](https://www.bigdatacloud.com/) | 坐标 → 「北京市 · 朝阳区」 |
 | 城市搜索 | Open-Meteo Geocoding | 中文查询自动追加「市」变体并重排 |
@@ -182,7 +183,7 @@ dsh plugin --profile web add dsh-weather-panel    # 指定 profile
 | 历史气温 | Open-Meteo `past_days` | 逐日最高 / 最低 / 平均；`forecast_days=0` 只回完整日（截至昨天） |
 | 专业图 | **easterlywave.com** 社区站点 | 海表温度按日；ECMWF 图按 `00Z/12Z` 起报 + 24h 步长。该站 JSON 接口需 cookie + CSRF 且无 CORS，**这里只取静态产品图**，并保留官方页面链接 |
 
-**隐私**：定位只把公网 IP 交给上述定位服务；天气只把坐标交给 Open-Meteo；预警与台风请求不携带任何个人信息。缓存只写本机 `localStorage`。
+**隐私**：定位只把公网 IP 交给上述定位服务；天气只把坐标交给 Open-Meteo，主源失败时改用中央气象台的国内站点（按城市/区县名检索站点，只发送地名）；预警与台风请求不携带任何个人信息。缓存只写本机 `localStorage`。
 
 **README 中的表情包**：来自本项目作者自用的表情包图库，仅用于本仓库页面展示，不随代码授权（请勿另作商用）。
 

@@ -12,6 +12,13 @@
  */
 
 export const FORECAST_ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
+/** Provenance carried on every normalized snapshot so the footer can name it. */
+export const OPEN_METEO_SOURCE = {
+  id: 'open-meteo',
+  name: 'Open-Meteo',
+  url: 'https://open-meteo.com/',
+  license: 'CC BY 4.0'
+};
 /** Today plus the five days the panel shows as "未来 5 天". */
 export const FORECAST_DAYS = 6;
 export const UPCOMING_HOURS = 24;

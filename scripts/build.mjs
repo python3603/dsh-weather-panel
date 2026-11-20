@@ -37,6 +37,7 @@ const MODULES = [
   'src/lib/districts.js',
   'src/lib/geo.js',
   'src/lib/weather.js',
+  'src/lib/cma.js',
   'src/lib/history.js',
   'src/lib/procharts.js',
   'src/lib/satellite.js',

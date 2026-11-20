@@ -101,7 +101,15 @@ function WeatherNotice(props) {
     : filterAlertsByLevels(relevantAlerts, levelNotice);
   const hasAlert = alerts.length > 0;
 
-  const rain = summarizeRainWindow(state.forecast, { hours: RAIN_WINDOW_HOURS });
+  // A partial (backup-source) forecast has no hourly series: it cannot prove a
+  // dry or rainy window, so the rain notice stays silent instead of guessing.
+  const rain = state.forecast && state.forecast.partial
+    ? null
+    : summarizeRainWindow(state.forecast, { hours: RAIN_WINDOW_HOURS });
+  const partialForecast = Boolean(state.forecast && state.forecast.partial);
+  const forecastSourceName = state.forecast && state.forecast.source && state.forecast.source.name
+    ? state.forecast.source.name
+    : 'Open-Meteo';
   const quietActive = isWithinQuietHours(now, quietHours);
   const frequency = settings.noticeFrequency || DEFAULT_NOTICE_FREQUENCY;
   const lastRainAt = readRainNoticeAt();
@@ -228,14 +236,16 @@ function WeatherNotice(props) {
               weatherLabel(current && current.weatherCode, lang),
               today
                 ? ` · ${t('notice.todayRange', {
-                  high: formatTemperature(today.temperatureMax, units),
-                  low: formatTemperature(today.temperatureMin, units)
+                  high: formatTemperature(today.tempMax, units),
+                  low: formatTemperature(today.tempMin, units)
                 })}`
                 : ''
             )
           ),
           h('p', { className: 'dshw-notice-text' },
-            rain && rain.kind !== 'none' ? rainText : t('notice.rainNone')
+            partialForecast
+              ? t('notice.rainPartial')
+              : (rain && rain.kind !== 'none' ? rainText : t('notice.rainNone'))
           ),
           h('p', { className: 'dshw-note' },
             hasAlert
@@ -244,7 +254,7 @@ function WeatherNotice(props) {
           )
         ),
         h('footer', { className: 'dshw-modal-foot' },
-          h('span', { className: 'dshw-note' }, t('notice.source')),
+          h('span', { className: 'dshw-note' }, t('notice.source', { weather: forecastSourceName })),
           h('div', { className: 'dshw-notice-actions' },
             h('button', {
               type: 'button',
@@ -325,7 +335,7 @@ function WeatherNotice(props) {
           : null
       ),
       h('footer', { className: 'dshw-modal-foot' },
-        h('span', { className: 'dshw-note' }, t('notice.source')),
+        h('span', { className: 'dshw-note' }, t('notice.source', { weather: forecastSourceName })),
         h('div', { className: 'dshw-notice-actions' },
           hasAlert
             ? h('button', {

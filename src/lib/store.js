@@ -18,7 +18,8 @@ import { createSafeStorage, createTtlCache } from './cache.js';
 import { ALARM_MAX_PAGES, ALARM_PAGE_SIZE, DEFAULT_ALERT_NOTICE, DEFAULT_ALERT_STRONG, ALERT_LEVELS, ALERT_TYPES, buildAlarmPageUrl, matchAlerts, normalizeAlarmPage } from './alerts.js';
 import { TYPHOON_DETAIL_URL, TYPHOON_LIST_URL, listHasActiveTyphoon, normalizeTyphoonDetail, normalizeTyphoonList, parseJsonp, pickTyphoon } from './typhoon.js';
 import { lookupNetworkLocation, reverseGeocode } from './geo.js';
-import { buildForecastUrl, normalizeForecast } from './weather.js';
+import { buildForecastUrl, normalizeForecast, OPEN_METEO_SOURCE } from './weather.js';
+import { buildCmaSearchUrl, buildCmaViewUrl, cmaCandidateNames, cmaPathInRegion, normalizeCmaForecast, parseCmaStations, pickCmaStation } from './cma.js';
 import { DEFAULT_NOTICE_FREQUENCY, normalizeNoticeFrequency } from './notice-core.js';
 import { formatCoordinates, isNumber } from './format.js';
 
@@ -33,6 +34,16 @@ const TYPHOON_TTL_MS = 60 * 60 * 1000;
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 12000;
+/**
+ * The primary endpoint is the only cross-border request in the panel; give it
+ * less room than a domestic image so a stalled connect can fall back to the
+ * domestic feed instead of holding the "loading" state for 12 seconds.
+ */
+const FORECAST_PRIMARY_TIMEOUT_MS = 9000;
+/** Total budget for the domestic fallback, so a second dead source cannot hang refresh. */
+const FORECAST_FALLBACK_TIMEOUT_MS = 8000;
+/** A backup snapshot has no hourly series; revalidate it sooner than a full forecast. */
+const PARTIAL_FORECAST_TTL_MS = 3 * 60 * 1000;
 /** A transient network error gets one immediate retry before we give up. */
 const FETCH_RETRY_DELAY_MS = 600;
 /** After a failed refresh, try again sooner than the 10-minute auto refresh. */
@@ -56,6 +67,8 @@ let sharedLocationCache = null;
 let sharedForecastCaches = new Map();
 let sharedAlertCache = null;
 let sharedTyphoonCache = null;
+/** Station ids per search term: autocomplete is stable, no need to repeat it. */
+const sharedCmaStations = new Map();
 
 export function getPanelStorage() {
   if (!sharedStorage) sharedStorage = createSafeStorage(`${PANEL_ID}:probe`);
@@ -522,6 +535,7 @@ function withSource(promise, source) {
 export function describeError(error, translate) {
   if (!error) return translate('error.weather');
   if (error.kind === 'locate') return translate('error.locate');
+  if (error.allSources) return translate('error.forecastAll');
   if (error.source === 'alerts') return translate('error.alerts');
   if (error.source === 'typhoon') return translate('error.typhoon');
   if (typeof error.status === 'number') return translate('error.http', { status: error.status });
@@ -715,6 +729,111 @@ export function createWeatherStore() {
     }, wait);
   }
 
+  /**
+   * Domestic fallback: resolve a CMA station from the location name, then read
+   * that station's current + 7-day view. Returns null when no station matches or
+   * the payload has nothing usable, so the caller can report the primary error.
+   */
+  async function loadCmaForecast(location, signal) {
+    // The domestic feed only covers Chinese stations. GPS users abroad must not
+    // be shown a same-named Chinese city's weather when the primary source fails.
+    const country = location && typeof location.countryCode === 'string'
+      ? location.countryCode.trim().toUpperCase()
+      : '';
+    if (country && country !== 'CN' && country !== '中国') return null;
+    if (!country) {
+      const lat = Number(location && location.lat);
+      const lon = Number(location && location.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon) && (lat < 18 || lat > 54 || lon < 73 || lon > 135)) {
+        return null;
+      }
+    }
+
+    const names = cmaCandidateNames(location);
+    for (const name of names) {
+      let stations = sharedCmaStations.get(name);
+      if (!stations) {
+        try {
+          const payload = await fetchJson(buildCmaSearchUrl(name), {
+            signal,
+            timeoutMs: FORECAST_PRIMARY_TIMEOUT_MS
+          });
+          stations = parseCmaStations(payload);
+        } catch (error) {
+          if (signal && signal.aborted) throw error;
+          continue;
+        }
+        if (stations && stations.length) sharedCmaStations.set(name, stations);
+      }
+      const station = pickCmaStation(stations || [], names);
+      if (!station) continue;
+      try {
+        const payload = await fetchJson(buildCmaViewUrl(station.id), {
+          signal,
+          timeoutMs: FORECAST_PRIMARY_TIMEOUT_MS
+        });
+        const normalized = normalizeCmaForecast(payload, { station });
+        if (normalized) {
+          const path = payload && payload.data && payload.data.location ? payload.data.location.path : '';
+          if (cmaPathInRegion(path, location.region)) return normalized;
+        }
+      } catch (error) {
+        if (signal && signal.aborted) throw error;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Forecast with automatic source fallback: Open-Meteo first (the only source
+   * with an hourly series), then the domestic CMA feed. A primary network error
+   * or timeout is not fatal as long as the fallback answers; when both fail the
+   * thrown error is marked so the banner can say "all sources unavailable"
+   * instead of blaming the weather.
+   */
+  async function loadForecast(location, signal) {
+    let primaryError = null;
+    try {
+      const payload = await fetchJson(buildForecastUrl(location.lat, location.lon), {
+        signal,
+        timeoutMs: FORECAST_PRIMARY_TIMEOUT_MS
+      });
+      const normalized = normalizeForecast(payload);
+      if (!normalized) throw taggedError('data');
+      normalized.source = OPEN_METEO_SOURCE;
+      return normalized;
+    } catch (error) {
+      if (signal && signal.aborted) throw error;
+      primaryError = error;
+    }
+    // Bound the whole fallback attempt: a dead second source must not keep the
+    // panel busy while each candidate name burns another request timeout.
+    const fallbackController = new AbortController();
+    const detach = signal ? () => fallbackController.abort() : null;
+    if (signal) {
+      if (signal.aborted) {
+        const aborted = new Error('aborted');
+        aborted.name = 'AbortError';
+        throw aborted;
+      }
+      signal.addEventListener('abort', detach, { once: true });
+    }
+    const budget = setTimeout(() => fallbackController.abort(), FORECAST_FALLBACK_TIMEOUT_MS);
+    let fallback = null;
+    try {
+      fallback = await loadCmaForecast(location, fallbackController.signal);
+    } catch (error) {
+      if (signal && signal.aborted) throw error;
+    } finally {
+      clearTimeout(budget);
+      if (signal && detach) signal.removeEventListener('abort', detach);
+    }
+    if (fallback) return fallback;
+    const failure = taggedError('data', primaryError instanceof Error ? primaryError : undefined);
+    failure.allSources = true;
+    throw failure;
+  }
+
   async function refresh(options) {
     const force = Boolean(options && options.force);
     const run = ++runId;
@@ -748,10 +867,8 @@ export function createWeatherStore() {
     const tasks = [];
     tasks.push(withSource((async () => {
       if (cachedForecast && cachedSavedAt && Date.now() - cachedSavedAt < FORECAST_TTL_MS) return;
-      const payload = await fetchJson(buildForecastUrl(location.lat, location.lon), { signal: controller.signal });
-      const normalized = normalizeForecast(payload);
-      if (!normalized) throw taggedError('data');
-      cache.set('latest', normalized, FORECAST_TTL_MS);
+      const normalized = await loadForecast(location, controller.signal);
+      cache.set('latest', normalized, normalized.partial ? PARTIAL_FORECAST_TTL_MS : FORECAST_TTL_MS);
       if (!alive(run)) return;
       emit({ forecast: normalized, updatedAt: Date.now(), phase: 'ready' });
     })(), 'forecast'));

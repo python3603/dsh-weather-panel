@@ -194,5 +194,6 @@ test('describeError names the failing source instead of blaming the weather', ()
   assert.equal(describeError(Object.assign(new Error('bad'), { status: 503 }), t), 'error.http');
   assert.equal(describeError(Object.assign(new Error('bad'), { source: 'alerts' }), t), 'error.alerts');
   assert.equal(describeError(Object.assign(new Error('bad'), { source: 'typhoon' }), t), 'error.typhoon');
+  assert.equal(describeError(Object.assign(new Error('bad'), { allSources: true, source: 'forecast' }), t), 'error.forecastAll');
   assert.equal(describeError(Object.assign(new Error('bad'), { kind: 'data' }), t), 'error.weather');
 });

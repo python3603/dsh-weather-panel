@@ -306,11 +306,19 @@ function PanelSkeleton(props) {
 function PanelFooter(props) {
   const { t, state } = props;
   const provider = state.location && state.location.provider ? state.location.provider : '';
+  const source = (state.forecast && state.forecast.source) || {
+    id: 'open-meteo',
+    name: 'Open-Meteo',
+    url: 'https://open-meteo.com/',
+    license: 'CC BY 4.0'
+  };
+  const fallback = source.id !== 'open-meteo';
   return h('footer', { className: 'dshw-footer' },
     h('span', null,
       `${t('footer.weather')}: `,
-      h('a', { href: 'https://open-meteo.com/', target: '_blank', rel: 'noreferrer noopener' }, 'Open-Meteo'),
-      ` · ${t('footer.license')}`
+      h('a', { href: source.url, target: '_blank', rel: 'noreferrer noopener' }, source.name),
+      source.license ? ` · ${t('footer.license')}` : '',
+      fallback ? ` · ${t('footer.fallback')}` : ''
     ),
     h('span', null,
       `${t('footer.alerts')}: `,
@@ -340,6 +348,7 @@ function WeatherTab(props) {
   if (!forecast) return null;
   return h(React.Fragment, null,
     h(NowSection, { t, lang, units, current, today }),
+    forecast.partial ? h('p', { className: 'dshw-note' }, t('forecast.partial')) : null,
     h('section', { className: 'dshw-section' },
       h('div', { className: 'dshw-section-head' },
         h('h2', { className: 'dshw-section-title' }, t('forecast.title'))

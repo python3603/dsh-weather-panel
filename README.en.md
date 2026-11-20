@@ -43,7 +43,9 @@ it stays quiet for the day.
 
 In short: three IP-geolocation sources race in the browser (with an optional persisted device-location
 switch) → BigDataCloud reverse-geocodes the coordinates → Open-Meteo returns current / hourly / daily
-data for that point; in the same round the national CMA alert feed (matched by city, then province) and
+data for that point; if Open-Meteo errors, times out or returns an unusable payload, the panel
+automatically falls back to the domestic CMA station feed (`weather.cma.cn`: current + 7 days, no
+hourly series) and marks the source and the degraded mode. In the same round the national CMA alert feed (matched by city, then province) and
 the CMA typhoon list/track are fetched. Everything lands in one shared store used by both the panel and
 the startup notice; caches are written to `localStorage`.
 
@@ -169,6 +171,7 @@ To uninstall, disable or remove `dsh-weather-panel` on the Plugins page; your ch
 | Use | Service | Notes |
 | --- | --- | --- |
 | Weather | [Open-Meteo](https://open-meteo.com/) | Keyless; **CC BY 4.0** |
+| Weather backup | **CMA** `weather.cma.cn` | Used automatically when the primary fails; `autocomplete` picks a domestic station and `weather/view` returns current + 7 days (CORS `*`). No hourly series, so the panel labels the degraded mode |
 | Network location | [ipwho.is](https://ipwho.is/), [ipinfo.io](https://ipinfo.io/), [api.ip.sb](https://ip.sb/) | Raced concurrently; one failure cannot break the panel |
 | Reverse geocoding | [BigDataCloud](https://www.bigdatacloud.com/) | Coordinates → readable place name |
 | District index | **GeoNames** (CC BY 4.0) | China ADM1/ADM2/ADM3 administrative centres, generated at build time and bundled — no network at runtime |
@@ -177,8 +180,9 @@ To uninstall, disable or remove `dsh-weather-panel` on the Plugins page; your ch
 | Typhoons | CMA typhoon service `typhoon.nmc.cn` | JSONP; stripped and parsed in the browser |
 | Basemap | [Natural Earth](https://www.naturalearthdata.com/) 1:50m land | Public domain; clipped and simplified at build time (~36 KiB) |
 
-**Privacy**: location requests share only your public IP, weather requests only coordinates, and
-alert/typhoon requests carry nothing personal. Caches stay in your own `localStorage`.
+**Privacy**: location requests share only your public IP; weather requests share the coordinates with
+Open-Meteo and, only when the primary fails, a place name with the CMA domestic station feed; alert and
+typhoon requests carry nothing personal. Caches stay in your own `localStorage`.
 
 **Stickers in this README** come from the author's own meme library, are used for this repository page
 only, and are not covered by the code license.
